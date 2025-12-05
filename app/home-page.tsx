@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Dimensions, FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
@@ -38,7 +39,7 @@ import VeganSvg from '../assets/HomePage/icons/vegan.svg';
 const { width } = Dimensions.get('window');
 
 const categoryIcons = [
-  { key: 'snacks', icon: SnacksSvg, label: 'Snacks' },
+  { key: 'Blind Box', icon: SnacksSvg, label: 'Blind Box' },
   { key: 'meal', icon: MealSvg, label: 'Meal' },
   { key: 'vegan', icon: VeganSvg, label: 'Vegan' },
   { key: 'bakery', icon: BakerySvg, label: 'Bakery' },
@@ -115,12 +116,20 @@ export default function HomePage() {
 
           <View style={styles.categoriesRow}>
             {categoryIcons.map((cat) => (
-              <View key={cat.key} style={styles.categoryItem}>
+              <Pressable 
+                key={cat.key} 
+                style={styles.categoryItem}
+                onPress={() => {
+                  if (cat.key === 'Blind Box') {
+                    router.push('./category-blindbox');
+                  }
+                }}
+              >
                 <View style={styles.categoryCircle}>
                   <cat.icon width={72} height={72} />
                 </View>
                 <ThemedText style={styles.categoryLabel}>{cat.label}</ThemedText>
-              </View>
+              </Pressable>
             ))}
           </View>
 
