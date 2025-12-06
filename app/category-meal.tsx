@@ -12,15 +12,15 @@ import FilterSvg from '../assets/HomePage/icons/filter.svg';
 import ProfileSvg from '../assets/HomePage/icons/profile.svg';
 
 // Category icons
-import BlindBoxPressedSvg from '../assets/Category-BlindBox/icons/blindboxpressed.svg';
+import MealPressedSvg from '../assets/Category-Meal/icons/mealpressed.svg';
 import BakerySvg from '../assets/HomePage/icons/bakery.svg';
 import DrinksSvg from '../assets/HomePage/icons/drinks.svg';
-import MealSvg from '../assets/HomePage/icons/meal.svg';
+import BlindBoxSvg from '../assets/HomePage/icons/snacks.svg';
 import VeganSvg from '../assets/HomePage/icons/vegan.svg';
 
 // Food images
-import GoodBakerySvg from '../assets/Category-BlindBox/images/goodbakery.svg';
-import UrbanKoreanFrySvg from '../assets/Category-BlindBox/images/urbankoreanfry.svg';
+import HotPotSvg from '../assets/Category-Meal/images/hotpot.svg';
+import MeeTarikSvg from '../assets/Category-Meal/images/meetarik.svg';
 
 // Bottom navigation icons
 import BestsellingSvg from '../assets/HomePage/icons/bestselling.svg';
@@ -46,15 +46,15 @@ interface FoodItem {
   image: any;
 }
 
-export default function CategoryBlindBoxScreen() {
-  const [selectedCategory, setSelectedCategory] = useState('1');
+export default function CategoryMealScreen() {
+  const [selectedCategory, setSelectedCategory] = useState('2');
   const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
   const [showCartSidebar, setShowCartSidebar] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
 
   const categories: CategoryItem[] = [
-    { id: '1', icon: BlindBoxPressedSvg, label: 'Blind Box', pressed: true },
-    { id: '2', icon: MealSvg, label: 'Meal', pressed: false },
+    { id: '1', icon: BlindBoxSvg, label: 'Blind Box', pressed: false },
+    { id: '2', icon: MealPressedSvg, label: 'Meal', pressed: true },
     { id: '3', icon: VeganSvg, label: 'Vegan', pressed: false },
     { id: '4', icon: BakerySvg, label: 'Dessert', pressed: false },
     { id: '5', icon: DrinksSvg, label: 'Drinks', pressed: false },
@@ -63,23 +63,31 @@ export default function CategoryBlindBoxScreen() {
   const foodItems: FoodItem[] = [
     {
       id: '1',
-      name: 'Good Ground Bakery',
+      name: 'Mee Tarik Set',
       rating: '4.8',
       verified: true,
-      price: '$10.00',
-      description: 'Blind Box Only (After 20:00) - The remaining fresh bread of the day, the quantity depends on the type of bread.',
-      image: GoodBakerySvg,
+      price: '$2.96',
+      description: 'Lengthy Ramen, tofu+Meat ball or Mini Cucumber+Hot Roll+Kimchi choose two',
+      image: MeeTarikSvg,
     },
     {
       id: '2',
-      name: 'K Fry Urban Korean',
+      name: 'Spicy HotPot Set',
       rating: '4.9',
       verified: true,
-      price: '$10.99',
-      description: 'I insist on selling fresh fried chicken every day. The remaining fried chicken of the day will be made into blind box!',
-      image: UrbanKoreanFrySvg,
+      price: '$2.96',
+      description: 'Mix and match the package, select 5 out of the 10 options',
+      image: HotPotSvg,
     },
   ];
+
+  const handleCategoryPress = (categoryId: string) => {
+    if (categoryId === '1') {
+      router.push('./category-blindbox');
+    } else {
+      setSelectedCategory(categoryId);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -131,13 +139,7 @@ export default function CategoryBlindBoxScreen() {
                     styles.categoryItem,
                     category.id === selectedCategory && styles.selectedCategoryItem
                   ]}
-                  onPress={() => {
-                    if (category.id === '2') {
-                      router.push('./category-meal');
-                    } else {
-                      setSelectedCategory(category.id);
-                    }
-                  }}
+                  onPress={() => handleCategoryPress(category.id)}
                 >
                   <View style={[
                     styles.categoryIconContainer,

@@ -122,6 +122,8 @@ export default function HomePage() {
                 onPress={() => {
                   if (cat.key === 'Blind Box') {
                     router.push('./category-blindbox');
+                  } else if (cat.key === 'meal') {
+                    router.push('./category-meal');
                   }
                 }}
               >
