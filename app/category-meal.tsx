@@ -84,6 +84,12 @@ export default function CategoryMealScreen() {
   const handleCategoryPress = (categoryId: string) => {
     if (categoryId === '1') {
       router.push('./category-blindbox');
+    } else if (categoryId === '3') {
+      router.push('./category-vegan');
+    } else if (categoryId === '4') {
+      router.push('./category-dessert');
+    } else if (categoryId === '5') {
+      router.push('./category-drink');
     } else {
       setSelectedCategory(categoryId);
     }

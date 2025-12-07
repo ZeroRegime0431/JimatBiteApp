@@ -124,6 +124,12 @@ export default function HomePage() {
                     router.push('./category-blindbox');
                   } else if (cat.key === 'meal') {
                     router.push('./category-meal');
+                  } else if (cat.key === 'vegan') {
+                    router.push('./category-vegan');
+                  } else if (cat.key === 'bakery') {
+                    router.push('./category-dessert');
+                  } else if (cat.key === 'drinks') {
+                    router.push('./category-drink');
                   }
                 }}
               >

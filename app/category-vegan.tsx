@@ -12,15 +12,15 @@ import FilterSvg from '../assets/HomePage/icons/filter.svg';
 import ProfileSvg from '../assets/HomePage/icons/profile.svg';
 
 // Category icons
-import BlindBoxPressedSvg from '../assets/Category-BlindBox/icons/blindboxpressed.svg';
+import VeganPressedSvg from '../assets/Category-Vegan/icons/veganpressed.svg';
 import BakerySvg from '../assets/HomePage/icons/bakery.svg';
 import DrinksSvg from '../assets/HomePage/icons/drinks.svg';
 import MealSvg from '../assets/HomePage/icons/meal.svg';
-import VeganSvg from '../assets/HomePage/icons/vegan.svg';
+import BlindBoxSvg from '../assets/HomePage/icons/snacks.svg';
 
 // Food images
-import GoodBakerySvg from '../assets/Category-BlindBox/images/goodbakery.svg';
-import UrbanKoreanFrySvg from '../assets/Category-BlindBox/images/urbankoreanfry.svg';
+import LasagnaSvg from '../assets/Category-Vegan/images/lasagna.svg';
+import RisottoSvg from '../assets/Category-Vegan/images/risotto.svg';
 
 // Bottom navigation icons
 import BestsellingSvg from '../assets/HomePage/icons/bestselling.svg';
@@ -46,16 +46,16 @@ interface FoodItem {
   image: any;
 }
 
-export default function CategoryBlindBoxScreen() {
-  const [selectedCategory, setSelectedCategory] = useState('1');
+export default function CategoryVeganScreen() {
+  const [selectedCategory, setSelectedCategory] = useState('3');
   const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
   const [showCartSidebar, setShowCartSidebar] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
 
   const categories: CategoryItem[] = [
-    { id: '1', icon: BlindBoxPressedSvg, label: 'Blind Box', pressed: true },
+    { id: '1', icon: BlindBoxSvg, label: 'Blind Box', pressed: false },
     { id: '2', icon: MealSvg, label: 'Meal', pressed: false },
-    { id: '3', icon: VeganSvg, label: 'Vegan', pressed: false },
+    { id: '3', icon: VeganPressedSvg, label: 'Vegan', pressed: true },
     { id: '4', icon: BakerySvg, label: 'Dessert', pressed: false },
     { id: '5', icon: DrinksSvg, label: 'Drinks', pressed: false },
   ];
@@ -63,23 +63,37 @@ export default function CategoryBlindBoxScreen() {
   const foodItems: FoodItem[] = [
     {
       id: '1',
-      name: 'Good Ground Bakery',
+      name: 'Mushroom Risotto',
       rating: '4.8',
       verified: true,
-      price: '$10.00',
-      description: 'Blind Box Only (After 20:00) - The remaining fresh bread of the day, the quantity depends on the type of bread.',
-      image: GoodBakerySvg,
+      price: '$15.00',
+      description: 'Juicy mushrooms and chewy risotto. Try this delightful option.',
+      image: RisottoSvg,
     },
     {
       id: '2',
-      name: 'K Fry Urban Korean',
-      rating: '4.9',
+      name: 'Broccoli Lasagna',
+      rating: '4.8',
       verified: true,
-      price: '$10.99',
-      description: 'I insist on selling fresh fried chicken every day. The remaining fried chicken of the day will be made into blind box!',
-      image: UrbanKoreanFrySvg,
+      price: '$2.99',
+      description: 'Our secret cheesecake recipe makes this incredibly smooth, tender broccoli, rich vegan cheese.',
+      image: LasagnaSvg,
     },
   ];
+
+  const handleCategoryPress = (categoryId: string) => {
+    if (categoryId === '1') {
+      router.push('./category-blindbox');
+    } else if (categoryId === '2') {
+      router.push('./category-meal');
+    } else if (categoryId === '4') {
+      router.push('./category-dessert');
+    } else if (categoryId === '5') {
+      router.push('./category-drink');
+    } else {
+      setSelectedCategory(categoryId);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -131,19 +145,7 @@ export default function CategoryBlindBoxScreen() {
                     styles.categoryItem,
                     category.id === selectedCategory && styles.selectedCategoryItem
                   ]}
-                  onPress={() => {
-                    if (category.id === '2') {
-                      router.push('./category-meal');
-                    } else if (category.id === '3') {
-                      router.push('./category-vegan');
-                    } else if (category.id === '4') {
-                      router.push('./category-dessert');
-                    } else if (category.id === '5') {
-                      router.push('./category-drink');
-                    } else {
-                      setSelectedCategory(category.id);
-                    }
-                  }}
+                  onPress={() => handleCategoryPress(category.id)}
                 >
                   <View style={[
                     styles.categoryIconContainer,

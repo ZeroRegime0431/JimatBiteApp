@@ -11,6 +11,11 @@ export default function RootLayout() {
       <Stack.Screen name="forgot-password" />
       <Stack.Screen name="set-password" />
       <Stack.Screen name="fingerprint" />
+      <Stack.Screen name="category-blindbox" options={{ animation: 'fade', animationDuration: 150 }} />
+      <Stack.Screen name="category-meal" options={{ animation: 'fade', animationDuration: 150 }} />
+      <Stack.Screen name="category-vegan" options={{ animation: 'fade', animationDuration: 150 }} />
+      <Stack.Screen name="category-dessert" options={{ animation: 'fade', animationDuration: 150 }} />
+      <Stack.Screen name="category-drink" options={{ animation: 'fade', animationDuration: 150 }} />
     </Stack>
   );
 }
