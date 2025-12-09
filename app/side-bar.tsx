@@ -33,7 +33,8 @@ export default function SideBar({ visible, onClose }: SideBarProps) {
   };
 
   const menuItems = [
-    { icon: OrdersSvg, label: 'My Orders', action: () => console.log('My Orders') },
+   
+{ icon: OrdersSvg, label: 'My Orders', action: () => { onClose(); router.push('./myorders-active'); } },
     { icon: MyProfileSvg, label: 'My Profile', action: () => console.log('My Profile') },
     { icon: AddressSvg, label: 'Delivery Address', action: () => console.log('Delivery Address') },
     { icon: PaymentSvg, label: 'Payment Methods', action: () => { onClose(); router.push('./payment-method'); } },
