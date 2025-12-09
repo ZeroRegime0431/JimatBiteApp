@@ -1,5 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 // SVG icons
@@ -25,6 +26,20 @@ interface SideBarProps {
 
 export default function SideBar({ visible, onClose }: SideBarProps) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [profile, setProfile] = useState({ fullName: 'John Smith', email: 'Loremipsum@email.com' });
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      const savedProfile = await AsyncStorage.getItem('profile');
+      if (savedProfile) {
+        const { fullName, email } = JSON.parse(savedProfile);
+        setProfile({ fullName, email });
+      }
+    };
+    if (visible) {
+      loadProfile();
+    }
+  }, [visible]);
 
   const handleLogout = () => {
     setShowLogoutModal(false);
@@ -33,9 +48,8 @@ export default function SideBar({ visible, onClose }: SideBarProps) {
   };
 
   const menuItems = [
-   
-{ icon: OrdersSvg, label: 'My Orders', action: () => { onClose(); router.push('./myorders-active'); } },
-    { icon: MyProfileSvg, label: 'My Profile', action: () => console.log('My Profile') },
+    { icon: OrdersSvg, label: 'My Orders', action: () => { onClose(); router.push('./myorders-active'); } },
+    { icon: MyProfileSvg, label: 'My Profile', action: () => { onClose(); router.push('./MyProfile'); } },
     { icon: AddressSvg, label: 'Delivery Address', action: () => console.log('Delivery Address') },
     { icon: PaymentSvg, label: 'Payment Methods', action: () => { onClose(); router.push('./payment-method'); } },
     { icon: ContactSvg, label: 'Contact Us', action: () => console.log('Contact Us') },
@@ -67,53 +81,53 @@ export default function SideBar({ visible, onClose }: SideBarProps) {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.profileSection}>
-            <View style={styles.profileImageContainer}>
-              <Image
-                source={{ uri: 'https://via.placeholder.com/60' }}
-                style={styles.profileImage}
-              />
+              <View style={styles.profileImageContainer}>
+                <Image
+                  source={require('../assets/Profile/Rectangle128.png')}
+                  style={styles.profileImage}
+                />
+              </View>
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>{profile.fullName}</Text>
+                <Text style={styles.profileEmail}>{profile.email}</Text>
+              </View>
+              <Pressable style={styles.profileArrow}>
+                <BackArrowSvg width={18} height={18} />
+              </Pressable>
             </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>John Smith</Text>
-              <Text style={styles.profileEmail}>Loremipsum@email.com</Text>
+
+            <View style={styles.menuContainer}>
+              {menuItems.map((item, index) => (
+                <View key={index}>
+                  <Pressable style={styles.menuItem} onPress={item.action}>
+                    <View style={styles.iconContainer}>
+                      <item.icon width={44} height={44} />
+                    </View>
+                    <Text style={styles.menuLabel}>{item.label}</Text>
+                  </Pressable>
+                  {index < menuItems.length - 1 && (
+                    <View style={styles.lineContainer}>
+                      <LineSvg width={width * 0.7} height={2} />
+                    </View>
+                  )}
+                </View>
+              ))}
+
+              <Pressable style={styles.logoutItem} onPress={() => setShowLogoutModal(true)}>
+                <View style={styles.iconContainer}>
+                  <LogoutSvg width={38} height={38} />
+                </View>
+                <Text style={styles.logoutLabel}>Log Out</Text>
+              </Pressable>
             </View>
-            <Pressable style={styles.profileArrow}>
-              <BackArrowSvg width={18} height={18} />
-            </Pressable>
-          </View>
 
-          <View style={styles.menuContainer}>
-            {menuItems.map((item, index) => (
-              <View key={index}>
-                <Pressable style={styles.menuItem} onPress={item.action}>
-                  <View style={styles.iconContainer}>
-                    <item.icon width={44} height={44} />
-                  </View>
-                  <Text style={styles.menuLabel}>{item.label}</Text>
-                </Pressable>
-                {index < menuItems.length - 1 && (
-                  <View style={styles.lineContainer}>
-                    <LineSvg width={width * 0.7} height={2} />
-                  </View>
-                )}
-              </View>
-            ))}
-
-            <Pressable style={styles.logoutItem} onPress={() => setShowLogoutModal(true)}>
-              <View style={styles.iconContainer}>
-                <LogoutSvg width={38} height={38} />
-              </View>
-              <Text style={styles.logoutLabel}>Log Out</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.bottomIconScrollable}>
-            <Pressable onPress={onClose}>
-              <View style={styles.homeIconContainer}>
-                <HomeSvg width={24} height={24} />
-              </View>
-            </Pressable>
-          </View>
+            <View style={styles.bottomIconScrollable}>
+              <Pressable onPress={onClose}>
+                <View style={styles.homeIconContainer}>
+                  <HomeSvg width={24} height={24} />
+                </View>
+              </Pressable>
+            </View>
           </ScrollView>
 
           {/* Logout Confirmation Modal */}

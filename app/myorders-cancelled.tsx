@@ -16,42 +16,37 @@ interface Order {
   time: string;
   itemCount: number;
   image: any;
-  trackingStatus: string;
+  status: string;
 }
 
-export default function MyOrdersActiveScreen() {
-  const [orders, setOrders] = useState<Order[]>([
+export default function MyOrdersCancelledScreen() {
+  const [orders] = useState<Order[]>([
     {
       id: '1',
-      name: 'Strawberry shake',
-      price: 20.0,
-      date: '29 Nov',
-      time: '01:20 pm',
+      name: 'Sushi Wave',
+      price: 103.0,
+      date: '02 Nov',
+      time: '02:45 pm',
       itemCount: 2,
-      image: require('../assets/OrderImages/strawberry.png'),
-      trackingStatus: 'Track Driver',
+      image: require('../assets/OrderImages/Rectangle134.png'),
+      status: 'Cancelled',
+    },
+    {
+      id: '2',
+      name: 'Fruit and Berry Tea',
+      price: 15.0,
+      date: '12 Oct',
+      time: '06:30 pm',
+      itemCount: 1,
+      image: require('../assets/OrderImages/Rectangle135.png'),
+      status: 'Cancelled',
     },
   ]);
 
-  const handleCancel = (orderId: string) => setOrders(prev => prev.filter(o => o.id !== orderId));
- // ...existing code...
-  const handleTabChange = (tab: 'completed' | 'cancelled') => {
+  const handleTabChange = (tab: 'active' | 'completed') => {
+    if (tab === 'active') router.push('./myorders-active');
     if (tab === 'completed') router.push('./myorders-completed');
-    if (tab === 'cancelled') router.push('./myorders-cancelled');
   };
-// ...existing code...
-          <View style={styles.tabsContainer}>
-            <Pressable style={[styles.tabButton, styles.tabButtonActive]}>
-              <Text style={[styles.tabButtonText, styles.tabButtonTextActive]}>Active</Text>
-            </Pressable>
-            <Pressable style={styles.tabButton} onPress={() => handleTabChange('completed')}>
-              <Text style={styles.tabButtonText}>Completed</Text>
-            </Pressable>
-            <Pressable style={styles.tabButton} onPress={() => handleTabChange('cancelled')}>
-              <Text style={styles.tabButtonText}>Cancelled</Text>
-            </Pressable>
-          </View>
-// ...existing code...
 
   return (
     <View style={styles.container}>
@@ -68,14 +63,14 @@ export default function MyOrdersActiveScreen() {
       <View style={styles.contentWrapper}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.tabsContainer}>
-            <Pressable style={[styles.tabButton, styles.tabButtonActive]}>
-              <Text style={[styles.tabButtonText, styles.tabButtonTextActive]}>Active</Text>
+            <Pressable style={styles.tabButton} onPress={() => handleTabChange('active')}>
+              <Text style={styles.tabButtonText}>Active</Text>
             </Pressable>
             <Pressable style={styles.tabButton} onPress={() => handleTabChange('completed')}>
               <Text style={styles.tabButtonText}>Completed</Text>
             </Pressable>
-            <Pressable style={styles.tabButton} onPress={() => handleTabChange('cancelled')}>
-              <Text style={styles.tabButtonText}>Cancelled</Text>
+            <Pressable style={[styles.tabButton, styles.tabButtonActive]}>
+              <Text style={[styles.tabButtonText, styles.tabButtonTextActive]}>Cancelled</Text>
             </Pressable>
           </View>
 
@@ -88,12 +83,9 @@ export default function MyOrdersActiveScreen() {
                   <Text style={styles.orderDateTime}>{order.date}, {order.time}</Text>
                   <Text style={styles.itemCount}>{order.itemCount} items</Text>
                   <View style={styles.orderActions}>
-                    <Pressable style={styles.cancelButton} onPress={() => handleCancel(order.id)}>
-                      <Text style={styles.cancelButtonText}>Cancel Order</Text>
-                    </Pressable>
-                    <Pressable style={styles.trackButton}>
-                      <Text style={styles.trackButtonText}>{order.trackingStatus}</Text>
-                    </Pressable>
+                    <View style={styles.cancelledButton}>
+                      <Text style={styles.cancelledButtonText}>{order.status}</Text>
+                    </View>
                   </View>
                 </View>
                 <View style={styles.orderRightSection}>
@@ -104,7 +96,7 @@ export default function MyOrdersActiveScreen() {
 
             {orders.length === 0 && (
               <View style={styles.emptyStateContainer}>
-                <Text style={styles.emptyStateText}>No active orders</Text>
+                <Text style={styles.emptyStateText}>No cancelled orders</Text>
               </View>
             )}
           </View>
@@ -135,30 +127,35 @@ export default function MyOrdersActiveScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3FFCF' },
   header: { 
-    paddingTop: Platform.OS === 'ios' ? 110 : 76, // Drag header further down
-    paddingBottom: 36, 
-    paddingHorizontal: 0, // Remove horizontal padding so icons touch screen edge
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    backgroundColor: '#F3FFCF' 
+    paddingTop: Platform.OS === 'ios' ? 100 : 76,
+    paddingBottom: 36,
+    paddingHorizontal: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F3FFCF'
   },
-  headerIcon: { width: 56, alignItems: 'center', justifyContent: 'center' }, // Wider touch area for easier tap
-  headerTitleWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  headerIcon: { width: 56, alignItems: 'center', justifyContent: 'center' },
+  headerTitleWrap: { 
+    flex: 1, 
+    alignItems: 'center', 
+    justifyContent: 'flex-start',
+    height: '100%',
+  },
   titleText: { 
     fontSize: 22, 
     fontWeight: '700', 
     color: '#306639', 
     textAlign: 'center',
-    marginTop: -40,
+    marginTop: -10,
   },
   contentWrapper: { 
     flex: 1, 
     backgroundColor: '#fff', 
     borderTopLeftRadius: 20, 
     borderTopRightRadius: 20, 
-    marginTop: -36, // Increase negative margin to match new header size
-    overflow: 'hidden' 
+    marginTop: -18,
+    overflow: 'hidden'
   },
   scrollContent: { paddingBottom: 140, paddingTop: 16 },
   tabsContainer: { 
@@ -196,22 +193,15 @@ const styles = StyleSheet.create({
   orderDateTime: { fontSize: 12, color: '#6B7280', marginTop: 4 },
   itemCount: { fontSize: 12, color: '#9CA3AF', marginTop: 4 },
   orderActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  cancelButton: { 
+  cancelledButton: { 
     paddingHorizontal: 12, 
     paddingVertical: 6, 
-    backgroundColor: '#1A5D1A', 
-    borderRadius: 6 
-  },
-  cancelButtonText: { color: '#fff', fontSize: 11, fontWeight: '600' },
-  trackButton: { 
-    paddingHorizontal: 12, 
-    paddingVertical: 6, 
-    backgroundColor: '#E8F5E9', 
+    backgroundColor: '#FFE5E5', 
     borderRadius: 6, 
     borderWidth: 1, 
-    borderColor: '#1A5D1A' 
+    borderColor: '#D32F2F'
   },
-  trackButtonText: { color: '#1A5D1A', fontSize: 11, fontWeight: '600' },
+  cancelledButtonText: { color: '#D32F2F', fontSize: 11, fontWeight: '600' },
   orderRightSection: { alignItems: 'flex-end' },
   orderPrice: { fontSize: 16, fontWeight: '700', color: '#1A5D1A' },
   emptyStateContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
@@ -229,6 +219,4 @@ const styles = StyleSheet.create({
     borderRadius: 24 
   },
   navIcon: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-
-  
 });

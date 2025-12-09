@@ -1,5 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 // SVG icons
@@ -25,15 +26,36 @@ export default function AddCardScreen() {
   const months = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
   const years = Array.from({ length: 31 }, (_, i) => (2020 + i).toString().slice(-2));
 
+  useEffect(() => {
+    const loadCard = async () => {
+      const savedCard = await AsyncStorage.getItem('cardDetails');
+      if (savedCard) {
+        const { cardName, cardNumber, expiryDate, cvv } = JSON.parse(savedCard);
+        setCardName(cardName);
+        setCardNumber(cardNumber);
+        setExpiryDate(expiryDate);
+        setCvv(cvv);
+        const [month, year] = expiryDate.split('/');
+        if (month && year) {
+          setSelectedMonth(month);
+          setSelectedYear(year);
+        }
+      }
+    };
+    loadCard();
+  }, []);
+
   const handleSelectDate = () => {
     setExpiryDate(`${selectedMonth}/${selectedYear}`);
     setShowDatePicker(false);
   };
 
-  const handleSaveCard = () => {
-    // Save card logic here
-    console.log('Card saved');
-    router.back(); // Go back to payment methods screen
+  const handleSaveCard = async () => {
+    await AsyncStorage.setItem(
+      'cardDetails',
+      JSON.stringify({ cardName, cardNumber, expiryDate, cvv })
+    );
+    router.back();
   };
 
   return (
@@ -47,76 +69,73 @@ export default function AddCardScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      {/* Content */}
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {/* Card Preview */}
-        <View style={styles.cardPreview}>
-          <DisplayCardSvg width={280} height={180} />
-          <View style={styles.cardOverlay}>
-            <View style={styles.cardTopRow}>
-              <View style={styles.flex1} />
-              <Text style={styles.cvvPreview}>{cvv}</Text>
+      {/* Card Preview */}
+      <View style={styles.cardPreview}>
+        <DisplayCardSvg width={280} height={180} />
+        <View style={styles.cardOverlay}>
+          <View style={styles.cardTopRow}>
+            <View style={styles.flex1} />
+            <Text style={styles.cvvPreview}>{cvv}</Text>
+          </View>
+          <Text style={styles.cardNumberPreview}>{cardNumber}</Text>
+          <View style={styles.cardBottomRow}>
+            <View>
+              <Text style={styles.cardLabel}>Card holder Name</Text>
+              <Text style={styles.cardValue}>{cardName}</Text>
             </View>
-            <Text style={styles.cardNumberPreview}>{cardNumber}</Text>
-            <View style={styles.cardBottomRow}>
-              <View>
-                <Text style={styles.cardLabel}>Card holder Name</Text>
-                <Text style={styles.cardValue}>{cardName}</Text>
-              </View>
-              <View style={styles.expiryContainer}>
-                <Text style={styles.cardLabel}>Expiry Date</Text>
-                <Text style={styles.cardValue}>{expiryDate}</Text>
-              </View>
+            <View style={styles.expiryContainer}>
+              <Text style={styles.cardLabel}>Expiry Date</Text>
+              <Text style={styles.cardValue}>{expiryDate}</Text>
             </View>
           </View>
         </View>
+      </View>
 
-        {/* Form */}
-        <View style={styles.form}>
-          <Text style={styles.label}>Card holder name</Text>
-          <TextInput
-            style={styles.input}
-            value={cardName}
-            onChangeText={setCardName}
-            placeholder="John Smith"
-            keyboardType='default'
-          />
+      {/* Form */}
+      <View style={styles.form}>
+        <Text style={styles.label}>Card holder name</Text>
+        <TextInput
+          style={styles.input}
+          value={cardName}
+          onChangeText={setCardName}
+          placeholder="John Smith"
+          keyboardType='default'
+        />
 
-          <Text style={styles.label}>Card Number</Text>
-          <TextInput
-            style={styles.input}
-            value={cardNumber}
-            onChangeText={setCardNumber}
-            placeholder="000 000 000 00"
-            keyboardType="numeric"
-          />
+        <Text style={styles.label}>Card Number</Text>
+        <TextInput
+          style={styles.input}
+          value={cardNumber}
+          onChangeText={setCardNumber}
+          placeholder="000 000 000 00"
+          keyboardType="numeric"
+        />
 
-          <View style={styles.row}>
-            <View style={styles.halfWidth}>
-              <Text style={styles.label}>Expiry Date</Text>
-              <Pressable style={styles.input} onPress={() => setShowDatePicker(true)}>
-                <Text style={styles.inputText}>{expiryDate}</Text>
-              </Pressable>
-            </View>
-            <View style={styles.halfWidth}>
-              <Text style={styles.label}>CVV</Text>
-              <TextInput
-                style={styles.input}
-                value={cvv}
-                onChangeText={setCvv}
-                placeholder="000"
-                keyboardType="numeric"
-                maxLength={3}
-                secureTextEntry
-              />
-            </View>
+        <View style={styles.row}>
+          <View style={styles.halfWidth}>
+            <Text style={styles.label}>Expiry Date</Text>
+            <Pressable style={styles.input} onPress={() => setShowDatePicker(true)}>
+              <Text style={styles.inputText}>{expiryDate}</Text>
+            </Pressable>
           </View>
-
-          <Pressable style={styles.saveButton} onPress={handleSaveCard}>
-            <Text style={styles.saveButtonText}>Save Card</Text>
-          </Pressable>
+          <View style={styles.halfWidth}>
+            <Text style={styles.label}>CVV</Text>
+            <TextInput
+              style={styles.input}
+              value={cvv}
+              onChangeText={setCvv}
+              placeholder="000"
+              keyboardType="numeric"
+              maxLength={3}
+              secureTextEntry
+            />
+          </View>
         </View>
-      </ScrollView>
+
+        <Pressable style={styles.saveButton} onPress={handleSaveCard}>
+          <Text style={styles.saveButtonText}>Save Card</Text>
+        </Pressable>
+      </View>
 
       {/* Date Picker Modal */}
       <Modal
@@ -209,240 +228,222 @@ export default function AddCardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4FFC9',
+    backgroundColor: '#F8F8F8',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingTop: 48,
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 20,
-    backgroundColor: '#F4FFC9',
+    paddingBottom: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
   },
   backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backArrow: {
-    fontSize: 28,
-    color: '#1A5D1A',
-    fontWeight: 'bold',
+    padding: 4,
   },
   headerTitle: {
+    flex: 1,
+    textAlign: 'center',
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1A5D1A',
+    color: '#222',
   },
   placeholder: {
-    width: 40,
-  },
-  content: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    marginTop: -2,
-  },
-  contentContainer: {
-    padding: 20,
-    paddingBottom: 100,
+    width: 28,
+    height: 28,
   },
   cardPreview: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 24,
     position: 'relative',
   },
   cardOverlay: {
     position: 'absolute',
-    top: 40,
-    left: 60,
-    right: 60,
+    top: 24,
+    left: 32,
+    right: 32,
+    bottom: 24,
+    justifyContent: 'space-between',
   },
   cardTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-    left: 20,
+    alignItems: 'center',
   },
   flex1: {
     flex: 1,
   },
   cvvPreview: {
-    fontSize: 12,
-    color: '#333',
-    fontWeight: '600',
-    letterSpacing: 1,
-    bottom: 23,
-    left: -5,
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: 'bold',
+    backgroundColor: '#222',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
   cardNumberPreview: {
     fontSize: 18,
-    color: '#333',
-    fontWeight: '600',
+    color: '#000000ff',
+    fontWeight: 'bold',
+    marginVertical: 14,
     letterSpacing: 2,
-    marginBottom: 20,
-    left: -16,
   },
   cardBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    left: -16,
   },
   cardLabel: {
     fontSize: 10,
-    color: '#666',
-    marginBottom: 2,
+    color: '#000000ff',
+    marginBottom: 4,
   },
   cardValue: {
-    fontSize: 12,
-    color: '#333',
-    fontWeight: '600',
+    fontSize: 14,
+    color: '#000000ff',
+    fontWeight: 'bold',
   },
   expiryContainer: {
-    marginLeft: 20,
-  },
-  chipPlaceholder: {
-    width: 40,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  chip: {
-    width: 30,
-    height: 24,
-    backgroundColor: '#4CAF50',
-    borderRadius: 4,
+    alignItems: 'flex-end',
   },
   form: {
-    marginTop: 20,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    marginHorizontal: 20,
+    marginBottom: 20,
   },
   label: {
     fontSize: 14,
-    color: '#333',
-    fontWeight: '600',
-    marginBottom: 8,
-    marginTop: 12,
+    color: '#222',
+    marginBottom: 6,
+    fontWeight: '500',
   },
   input: {
-    backgroundColor: '#FFF8D6',
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: '#F2F2F2',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 16,
-    color: '#333',
+    marginBottom: 16,
+    color: '#222',
   },
   inputText: {
     fontSize: 16,
-    color: '#333',
+    color: '#222',
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   halfWidth: {
-    width: '48%',
+    flex: 1,
+    marginRight: 8,
   },
   saveButton: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 25,
-    padding: 16,
+    backgroundColor: '#26a90bff',
+    borderRadius: 8,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 30,
+    marginTop: 12,
   },
   saveButtonText: {
-    fontSize: 16,
     color: '#fff',
+    fontSize: 16,
     fontWeight: 'bold',
-  },
-  bottomNav: {
-    position: 'absolute',
-    left: 12,
-    right: 12,
-    bottom: 18,
-    height: 64,
-    backgroundColor: '#1A5D1A',
-    borderRadius: 34,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-  },
-  navItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navIcon: {
-    fontSize: 24,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   datePickerPanel: {
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 16,
+    padding: 24,
     width: 320,
-    maxHeight: 400,
+    alignItems: 'center',
   },
   pickerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1A5D1A',
-    textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
+    color: '#222',
   },
   pickerContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+    width: '100%',
+    marginBottom: 16,
   },
   pickerColumn: {
     flex: 1,
-    marginHorizontal: 5,
+    alignItems: 'center',
   },
   pickerLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 10,
+    color: '#888',
+    marginBottom: 8,
   },
   pickerScroll: {
-    height: 200,
-    backgroundColor: '#F4FFC9',
-    borderRadius: 12,
+    maxHeight: 120,
+    width: '100%',
   },
   pickerItem: {
-    padding: 12,
-    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 4,
+    backgroundColor: '#F2F2F2',
   },
   pickerItemSelected: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#FF7F50',
   },
   pickerItemText: {
     fontSize: 16,
-    color: '#333',
+    color: '#222',
+    textAlign: 'center',
   },
   pickerItemTextSelected: {
     color: '#fff',
     fontWeight: 'bold',
   },
   pickerButton: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 25,
-    padding: 14,
+    backgroundColor: '#FF7F50',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 32,
     alignItems: 'center',
   },
   pickerButtonText: {
-    fontSize: 16,
     color: '#fff',
+    fontSize: 16,
     fontWeight: 'bold',
+  },
+  bottomNav: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
+    paddingVertical: 10,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    height: 64,
+  },
+  navItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
   },
 });
