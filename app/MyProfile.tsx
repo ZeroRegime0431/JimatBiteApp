@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import BestsellingSvg from '../assets/HomePage/icons/bestselling.svg';
 import FavouriteSvg from '../assets/HomePage/icons/favourite.svg';
 import HomeSvg from '../assets/HomePage/icons/home.svg';
@@ -52,7 +52,12 @@ export default function MyProfile() {
         <Text style={styles.headerTitle}>My Profile</Text>
         <View style={styles.headerIcon} />
       </View>
-      <View style={styles.contentWrapper}>
+      <ScrollView 
+        style={styles.scrollWrapper}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.contentWrapper}>
         <View style={styles.profileImageWrapper}>
           <Image
             source={require('../assets/Profile/Rectangle128.png')}
@@ -109,6 +114,7 @@ export default function MyProfile() {
           <Text style={styles.updateButtonText}>Update Profile</Text>
         </Pressable>
       </View>
+      </ScrollView>
       <View style={styles.bottomNavigation}>
         <Pressable style={styles.navIcon}>
           <HomeSvg width={22} height={22} />
@@ -132,6 +138,8 @@ export default function MyProfile() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3FFCF' },
+  scrollWrapper: { flex: 1 },
+  scrollContent: { paddingBottom: 100 },
   header: {
     paddingTop: Platform.OS === 'ios' ? 120 : 76,
     paddingBottom: 18,

@@ -16,6 +16,9 @@ export default function RootLayout() {
       <Stack.Screen name="category-vegan" options={{ animation: 'fade', animationDuration: 150 }} />
       <Stack.Screen name="category-dessert" options={{ animation: 'fade', animationDuration: 150 }} />
       <Stack.Screen name="category-drink" options={{ animation: 'fade', animationDuration: 150 }} />
+      <Stack.Screen name="myorders-active" options={{ animation: 'none' }} />
+      <Stack.Screen name="myorders-completed" options={{ animation: 'none' }} />
+      <Stack.Screen name="myorders-cancelled" options={{ animation: 'none' }} />
     </Stack>
   );
 }

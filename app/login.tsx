@@ -33,6 +33,7 @@ export default function LoginScreen() {
     { email: "raiyon@gmail.com", password: "Raiyon#987" },
     { email: "Yash@gmail.com", password: "Yash$789" },
     { email: "Gladson@gmail.com", password: "Gladson!456" },
+    { email: "", password: "" },
   ];
 
   // LOGIN VALIDATION FUNCTION

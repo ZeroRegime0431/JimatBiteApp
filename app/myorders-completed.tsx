@@ -6,6 +6,10 @@ import FavouriteSvg from '../assets/HomePage/icons/favourite.svg';
 import HomeSvg from '../assets/HomePage/icons/home.svg';
 import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
+import BeanBurgerSvg from '../assets/OrderImages/beanandvegetableburger.svg';
+import ChickenCurrySvg from '../assets/OrderImages/chickencurry.svg';
+import CoffeeLatteSvg from '../assets/OrderImages/coffeelatte.svg';
+import StrawberryCheesecakeSvg from '../assets/OrderImages/strawberrycheesecake.svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 
 interface Order {
@@ -28,7 +32,7 @@ export default function MyOrdersCompletedScreen() {
       date: '29 Nov',
       time: '1:20 pm',
       itemCount: 2,
-      image: require('../assets/OrderImages/chickencurry.png'),
+      image: ChickenCurrySvg,
       status: 'Delivered',
     },
      {
@@ -38,7 +42,7 @@ export default function MyOrdersCompletedScreen() {
       date: '10 Nov',
       time: '06:05 pm',
       itemCount: 2,
-      image: require('../assets/OrderImages/beanandvegetableburger.png'),
+      image: BeanBurgerSvg,
       status: 'Delivered',
     },
     {
@@ -48,7 +52,7 @@ export default function MyOrdersCompletedScreen() {
       date: '10 Nov',
       time: '8:30 am',
       itemCount: 1,
-      image: require('../assets/OrderImages/coffeelatte.png'),
+      image: CoffeeLatteSvg,
       status: 'Delivered',
     },
       {
@@ -58,12 +62,12 @@ export default function MyOrdersCompletedScreen() {
       date: '03 Oct',
       time: '3:40 pm',
       itemCount: 2,
-      image: require('../assets/OrderImages/strawberrycheesecake.png'),
+      image: StrawberryCheesecakeSvg,
       status: 'Delivered',
     },
      {
       id: '5',
-      name: 'Noondle Bowl',
+      name: 'Noodle Bowl',
       price: 17.0,
       date: '01 Oct',
       time: '5:40 pm',
@@ -111,7 +115,7 @@ export default function MyOrdersCompletedScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable style={styles.headerIcon} onPress={() => router.back()}>
+        <Pressable style={styles.headerIcon} onPress={() => router.push('./home-page')}>
           <BackArrowLeftSvg width={22} height={22} />
         </Pressable>
         <View style={styles.headerTitleWrap}>
@@ -137,7 +141,13 @@ export default function MyOrdersCompletedScreen() {
           <View style={styles.ordersContainer}>
             {orders.map(order => (
               <View key={order.id} style={styles.orderCard}>
-                <Image source={order.image} style={styles.orderImage} />
+                {typeof order.image === 'number' ? (
+                  <Image source={order.image} style={styles.orderImage} />
+                ) : (
+                  <View style={styles.orderImage}>
+                    <order.image width={80} height={80} />
+                  </View>
+                )}
                 <View style={styles.orderDetails}>
                   <Text style={styles.orderName}>{order.name}</Text>
                   <Text style={styles.orderDateTime}>{order.date}, {order.time}</Text>
@@ -187,7 +197,7 @@ export default function MyOrdersCompletedScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3FFCF' },
   header: { 
-    paddingTop: Platform.OS === 'ios' ? 100 : 76, // Match myorders-active
+    paddingTop: Platform.OS === 'ios' ? 110 : 76, // Match myorders-active
     paddingBottom: 36, // Match myorders-active
     paddingHorizontal: 0,
     flexDirection: 'row',

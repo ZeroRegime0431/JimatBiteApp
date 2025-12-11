@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import BestsellingSvg from '../assets/HomePage/icons/bestselling.svg';
 import FavouriteSvg from '../assets/HomePage/icons/favourite.svg';
 import HomeSvg from '../assets/HomePage/icons/home.svg';
 import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
+import StrawberrySvg from '../assets/OrderImages/strawberry.svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 
 interface Order {
@@ -28,7 +29,7 @@ export default function MyOrdersActiveScreen() {
       date: '29 Nov',
       time: '01:20 pm',
       itemCount: 2,
-      image: require('../assets/OrderImages/strawberry.png'),
+      image: StrawberrySvg,
       trackingStatus: 'Track Driver',
     },
   ]);
@@ -56,7 +57,7 @@ export default function MyOrdersActiveScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable style={styles.headerIcon} onPress={() => router.back()}>
+        <Pressable style={styles.headerIcon} onPress={() => router.push('./home-page')}>
           <BackArrowLeftSvg width={22} height={22} />
         </Pressable>
         <View style={styles.headerTitleWrap}>
@@ -82,7 +83,9 @@ export default function MyOrdersActiveScreen() {
           <View style={styles.ordersContainer}>
             {orders.map(order => (
               <View key={order.id} style={styles.orderCard}>
-                <Image source={order.image} style={styles.orderImage} />
+                <View style={styles.orderImage}>
+                  <order.image width={80} height={80} />
+                </View>
                 <View style={styles.orderDetails}>
                   <Text style={styles.orderName}>{order.name}</Text>
                   <Text style={styles.orderDateTime}>{order.date}, {order.time}</Text>
@@ -135,7 +138,7 @@ export default function MyOrdersActiveScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3FFCF' },
   header: { 
-    paddingTop: Platform.OS === 'ios' ? 110 : 76, // Drag header further down
+    paddingTop: Platform.OS === 'ios' ? 110 : 86, // Drag header further down
     paddingBottom: 36, 
     paddingHorizontal: 0, // Remove horizontal padding so icons touch screen edge
     flexDirection: 'row', 
@@ -150,14 +153,14 @@ const styles = StyleSheet.create({
     fontWeight: '700', 
     color: '#306639', 
     textAlign: 'center',
-    marginTop: -40,
+    marginTop: -10,
   },
   contentWrapper: { 
     flex: 1, 
     backgroundColor: '#fff', 
     borderTopLeftRadius: 20, 
     borderTopRightRadius: 20, 
-    marginTop: -36, // Increase negative margin to match new header size
+    marginTop: -18, // Increase negative margin to match new header size
     overflow: 'hidden' 
   },
   scrollContent: { paddingBottom: 140, paddingTop: 16 },

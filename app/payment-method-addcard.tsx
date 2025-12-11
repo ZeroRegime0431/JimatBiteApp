@@ -69,8 +69,13 @@ export default function AddCardScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      {/* Card Preview */}
-      <View style={styles.cardPreview}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Card Preview */}
+        <View style={styles.cardPreview}>
         <DisplayCardSvg width={280} height={180} />
         <View style={styles.cardOverlay}>
           <View style={styles.cardTopRow}>
@@ -136,6 +141,7 @@ export default function AddCardScreen() {
           <Text style={styles.saveButtonText}>Save Card</Text>
         </Pressable>
       </View>
+      </ScrollView>
 
       {/* Date Picker Modal */}
       <Modal
@@ -230,6 +236,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F8F8',
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -290,6 +302,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginVertical: 14,
     letterSpacing: 2,
+    top: 0,
   },
   cardBottomRow: {
     flexDirection: 'row',
@@ -300,11 +313,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#000000ff',
     marginBottom: 4,
+    right: -20,
   },
   cardValue: {
     fontSize: 14,
     color: '#000000ff',
     fontWeight: 'bold',
+    top: -8,
+    right: -20,
   },
   expiryContainer: {
     alignItems: 'flex-end',

@@ -91,7 +91,7 @@ export default function SideBar({ visible, onClose }: SideBarProps) {
                 <Text style={styles.profileName}>{profile.fullName}</Text>
                 <Text style={styles.profileEmail}>{profile.email}</Text>
               </View>
-              <Pressable style={styles.profileArrow}>
+              <Pressable style={styles.profileArrow} onPress={() => { onClose(); router.push('./MyProfile'); }}>
                 <BackArrowSvg width={18} height={18} />
               </Pressable>
             </View>

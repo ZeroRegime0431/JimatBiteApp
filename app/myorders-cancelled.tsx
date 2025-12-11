@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import BestsellingSvg from '../assets/HomePage/icons/bestselling.svg';
 import FavouriteSvg from '../assets/HomePage/icons/favourite.svg';
 import HomeSvg from '../assets/HomePage/icons/home.svg';
 import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
+import FruitTeaSvg from '../assets/OrderImages/fruittea.svg';
+import SushiSvg from '../assets/OrderImages/sushi.svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 
 interface Order {
@@ -28,7 +30,7 @@ export default function MyOrdersCancelledScreen() {
       date: '02 Nov',
       time: '02:45 pm',
       itemCount: 2,
-      image: require('../assets/OrderImages/Rectangle134.png'),
+      image: SushiSvg,
       status: 'Cancelled',
     },
     {
@@ -38,7 +40,7 @@ export default function MyOrdersCancelledScreen() {
       date: '12 Oct',
       time: '06:30 pm',
       itemCount: 1,
-      image: require('../assets/OrderImages/Rectangle135.png'),
+      image: FruitTeaSvg,
       status: 'Cancelled',
     },
   ]);
@@ -51,7 +53,7 @@ export default function MyOrdersCancelledScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable style={styles.headerIcon} onPress={() => router.back()}>
+        <Pressable style={styles.headerIcon} onPress={() => router.push('./home-page')}>
           <BackArrowLeftSvg width={22} height={22} />
         </Pressable>
         <View style={styles.headerTitleWrap}>
@@ -77,7 +79,9 @@ export default function MyOrdersCancelledScreen() {
           <View style={styles.ordersContainer}>
             {orders.map(order => (
               <View key={order.id} style={styles.orderCard}>
-                <Image source={order.image} style={styles.orderImage} />
+                <View style={styles.orderImage}>
+                  <order.image width={80} height={80} />
+                </View>
                 <View style={styles.orderDetails}>
                   <Text style={styles.orderName}>{order.name}</Text>
                   <Text style={styles.orderDateTime}>{order.date}, {order.time}</Text>
