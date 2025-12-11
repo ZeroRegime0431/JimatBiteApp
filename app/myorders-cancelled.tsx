@@ -131,7 +131,7 @@ export default function MyOrdersCancelledScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3FFCF' },
   header: { 
-    paddingTop: Platform.OS === 'ios' ? 100 : 76,
+    paddingTop: Platform.OS === 'ios' ? 110 : 76,
     paddingBottom: 36,
     paddingHorizontal: 0,
     flexDirection: 'row',

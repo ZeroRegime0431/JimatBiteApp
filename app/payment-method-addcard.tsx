@@ -302,7 +302,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginVertical: 14,
     letterSpacing: 2,
-    top: 0,
+    top: 10,
+    right: -10,
   },
   cardBottomRow: {
     flexDirection: 'row',

@@ -138,7 +138,7 @@ export default function MyOrdersActiveScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3FFCF' },
   header: { 
-    paddingTop: Platform.OS === 'ios' ? 110 : 86, // Drag header further down
+    paddingTop: Platform.OS === 'ios' ? 110 : 76, // Drag header further down
     paddingBottom: 36, 
     paddingHorizontal: 0, // Remove horizontal padding so icons touch screen edge
     flexDirection: 'row', 
