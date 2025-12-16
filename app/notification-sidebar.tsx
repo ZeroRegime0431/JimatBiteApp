@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 // SVG icons - reusing from existing assets
@@ -26,6 +26,22 @@ interface NotificationItem {
 }
 
 export default function NotificationSidebar({ visible, onClose }: NotificationSidebarProps) {
+  const [currentTime, setCurrentTime] = useState('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      setCurrentTime(`${hours}:${minutes}`);
+    };
+    
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   const notifications: NotificationItem[] = [
     {
       id: '1',
@@ -62,7 +78,7 @@ export default function NotificationSidebar({ visible, onClose }: NotificationSi
             <Pressable style={styles.backButton} onPress={onClose}>
               <BackArrowLeftSvg width={28} height={28} />
             </Pressable>
-            <Text style={styles.timeText}>16:04</Text>
+            <Text style={styles.timeText}>{currentTime}</Text>
           </View>
 
           <ScrollView 

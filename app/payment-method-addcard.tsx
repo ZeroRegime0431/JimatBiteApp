@@ -22,27 +22,24 @@ export default function AddCardScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('04');
   const [selectedYear, setSelectedYear] = useState('28');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [existingCards, setExistingCards] = useState<any[]>([]);
 
   const months = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
   const years = Array.from({ length: 31 }, (_, i) => (2020 + i).toString().slice(-2));
 
   useEffect(() => {
-    const loadCard = async () => {
-      const savedCard = await AsyncStorage.getItem('cardDetails');
-      if (savedCard) {
-        const { cardName, cardNumber, expiryDate, cvv } = JSON.parse(savedCard);
-        setCardName(cardName);
-        setCardNumber(cardNumber);
-        setExpiryDate(expiryDate);
-        setCvv(cvv);
-        const [month, year] = expiryDate.split('/');
-        if (month && year) {
-          setSelectedMonth(month);
-          setSelectedYear(year);
+    const loadCards = async () => {
+      try {
+        const cards = await AsyncStorage.getItem('savedCards');
+        if (cards) {
+          setExistingCards(JSON.parse(cards));
         }
+      } catch (error) {
+        console.error('Error loading cards:', error);
       }
     };
-    loadCard();
+    loadCards();
   }, []);
 
   const handleSelectDate = () => {
@@ -51,11 +48,46 @@ export default function AddCardScreen() {
   };
 
   const handleSaveCard = async () => {
-    await AsyncStorage.setItem(
-      'cardDetails',
-      JSON.stringify({ cardName, cardNumber, expiryDate, cvv })
-    );
-    router.back();
+    try {
+      // Check if max limit reached (5 cards)
+      if (existingCards.length >= 5) {
+        setErrorMessage('Maximum limit of 5 cards reached');
+        setTimeout(() => setErrorMessage(''), 3000);
+        return;
+      }
+
+      // Check for duplicate card
+      const isDuplicate = existingCards.some(
+        card => card.cardNumber === cardNumber && card.cardName === cardName
+      );
+
+      if (isDuplicate) {
+        setErrorMessage('This card already exists');
+        setTimeout(() => setErrorMessage(''), 3000);
+        return;
+      }
+
+      // Create new card with unique ID
+      const newCard = {
+        id: Date.now().toString(),
+        cardName,
+        cardNumber,
+        expiryDate,
+        cvv,
+      };
+
+      // Add to existing cards array
+      const updatedCards = [...existingCards, newCard];
+      await AsyncStorage.setItem('savedCards', JSON.stringify(updatedCards));
+      
+      // Clear error and navigate back
+      setErrorMessage('');
+      router.back();
+    } catch (error) {
+      console.error('Error saving card:', error);
+      setErrorMessage('Error saving card');
+      setTimeout(() => setErrorMessage(''), 3000);
+    }
   };
 
   return (
@@ -136,6 +168,12 @@ export default function AddCardScreen() {
             />
           </View>
         </View>
+
+        {errorMessage ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        ) : null}
 
         <Pressable style={styles.saveButton} onPress={handleSaveCard}>
           <Text style={styles.saveButtonText}>Save Card</Text>
@@ -288,13 +326,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cvvPreview: {
-    fontSize: 14,
+    fontSize: 10,
     color: '#fff',
     fontWeight: 'bold',
     backgroundColor: '#222',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
+    right: 29,
+    bottom: 8,
   },
   cardNumberPreview: {
     fontSize: 18,
@@ -302,8 +342,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginVertical: 14,
     letterSpacing: 2,
-    top: 10,
-    right: -10,
+    top: 15,
+    right: -25,
   },
   cardBottomRow: {
     flexDirection: 'row',
@@ -314,17 +354,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#000000ff',
     marginBottom: 4,
-    right: -20,
+    right: -25,
   },
   cardValue: {
     fontSize: 14,
     color: '#000000ff',
     fontWeight: 'bold',
     top: -8,
-    right: -20,
+    right: -25,
+    gap: 0,
   },
   expiryContainer: {
     alignItems: 'flex-end',
+    right: 90,
   },
   form: {
     backgroundColor: '#fff',
@@ -375,8 +417,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },  errorContainer: {
+    backgroundColor: '#FFEBEE',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F44336',
   },
-  modalOverlay: {
+  errorText: {
+    color: '#D32F2F',
+    fontSize: 14,
+    fontWeight: '500',
+  },  modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'center',

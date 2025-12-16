@@ -75,6 +75,29 @@ export default function HomePage() {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [cartVisible, setCartVisible] = useState(false);
 
+  const getGreeting = () => {
+    const currentHour = new Date().getHours();
+    
+    if (currentHour < 12) {
+      return {
+        title: 'Good Morning',
+        subtitle: "Rise And Shine! It's Breakfast Time"
+      };
+    } else if (currentHour < 19) {
+      return {
+        title: 'Good Afternoon',
+        subtitle: 'Time For A Delicious Lunch!'
+      };
+    } else {
+      return {
+        title: 'Good Evening',
+        subtitle: 'Enjoy Your Dinner Tonight!'
+      };
+    }
+  };
+
+  const greeting = getGreeting();
+
   const toggleLike = (id: string) => {
     setLikedItems(prev => ({ ...prev, [id]: !prev[id] }));
   };
@@ -111,8 +134,8 @@ export default function HomePage() {
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 120 }}>
         <View style={styles.greetingCard}>
-          <ThemedText type="title" style={styles.greetingTitle}>Good Morning</ThemedText>
-          <ThemedText type="subtitle" style={styles.greetingSub}>Rise And Shine! It's Breakfast Time</ThemedText>
+          <ThemedText type="title" style={styles.greetingTitle}>{greeting.title}</ThemedText>
+          <ThemedText type="subtitle" style={styles.greetingSub}>{greeting.subtitle}</ThemedText>
 
           <View style={styles.categoriesRow}>
             {categoryIcons.map((cat) => (
@@ -254,7 +277,7 @@ export default function HomePage() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  headerArea: { backgroundColor: '#F4FFC9', paddingTop: 76, paddingHorizontal: 14, paddingBottom: 16},
+  headerArea: { backgroundColor: '#f4ffc9ff', paddingTop: 76, paddingHorizontal: 14, paddingBottom: 16},
   topRow: { flexDirection: 'row', alignItems: 'center' },
   search: {
     flex: 1,
@@ -273,7 +296,7 @@ const styles = StyleSheet.create({
 
   content: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: -2 },
   greetingCard: { padding: 18 },
-  greetingTitle: { color: '#1A5D1A' },
+  greetingTitle: { color: '#1A5D1A', fontSize: 28, fontWeight: 'bold' },
   greetingSub: { color: '#7a7a7a', marginTop: 4, fontSize: 12 },
 
   categoriesRow: { flexDirection: 'row', marginTop: 54, justifyContent: 'space-between' },

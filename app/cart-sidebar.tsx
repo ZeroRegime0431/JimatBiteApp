@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 // SVG icons
@@ -28,26 +30,97 @@ interface CartItem {
 }
 
 export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    {
-      id: '1',
-      name: 'Strawberry Shake',
-      price: 20.00,
-      quantity: 2,
-      date: '29/11/24',
-      time: '15:00',
-      image: StrawberrySvg,
-    },
-    {
-      id: '2',
-      name: 'Broccoli Lasagna',
-      price: 12.00,
-      quantity: 1,
-      date: '29/11/24',
-      time: '12:00',
-      image: LasagnaSvg,
-    },
-  ]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [currentTime, setCurrentTime] = useState('');
+
+  // Update time every second
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      setCurrentTime(`${hours}:${minutes}`);
+    };
+    
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Load cart items from AsyncStorage when component mounts
+  useEffect(() => {
+    loadCartItems();
+  }, []);
+
+  // Save cart items to AsyncStorage whenever they change
+  useEffect(() => {
+    saveCartItems();
+  }, [cartItems]);
+
+  const loadCartItems = async () => {
+    try {
+      const savedCart = await AsyncStorage.getItem('cartItems');
+      if (savedCart) {
+        const items = JSON.parse(savedCart);
+        // Check if it's not an empty array
+        if (items.length > 0) {
+          // Map the saved items back to include image components
+          const mappedItems = items.map((item: any) => ({
+            ...item,
+            image: item.id === '1' ? StrawberrySvg : LasagnaSvg,
+          }));
+          setCartItems(mappedItems);
+        } else {
+          // Empty array saved, load defaults
+          loadDefaults();
+        }
+      } else {
+        // No saved cart, load defaults
+        loadDefaults();
+      }
+    } catch (error) {
+      console.error('Error loading cart items:', error);
+      loadDefaults();
+    }
+  };
+
+  const loadDefaults = () => {
+    const defaultItems = [
+      {
+        id: '1',
+        name: 'Strawberry Shake',
+        price: 20.00,
+        quantity: 2,
+        date: '29/11/24',
+        time: '15:00',
+        image: StrawberrySvg,
+      },
+      {
+        id: '2',
+        name: 'Broccoli Lasagna',
+        price: 12.00,
+        quantity: 1,
+        date: '29/11/24',
+        time: '12:00',
+        image: LasagnaSvg,
+      },
+    ];
+    setCartItems(defaultItems);
+  };
+
+  const saveCartItems = async () => {
+    try {
+      // Only save if there are items (don't save empty array)
+      if (cartItems.length > 0) {
+        // Save cart items without the image component (can't serialize functions)
+        const itemsToSave = cartItems.map(({ image, ...item }) => item);
+        await AsyncStorage.setItem('cartItems', JSON.stringify(itemsToSave));
+      }
+    } catch (error) {
+      console.error('Error saving cart items:', error);
+    }
+  };
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const taxAndFees = 5.00;
@@ -85,7 +158,7 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
             <Pressable style={styles.backButton} onPress={onClose}>
               <BackArrowLeftSvg width={28} height={28} />
             </Pressable>
-            <Text style={styles.timeText}>16:04</Text>
+            <Text style={styles.timeText}>{currentTime}</Text>
           </View>
 
           <ScrollView 
@@ -157,7 +230,7 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
               </View>
             </View>
 
-            <Pressable style={styles.checkoutButton} onPress={() => console.log('Checkout')}>
+            <Pressable style={styles.checkoutButton} onPress={() => { onClose(); router.push('./checkout'); }}>
               <Text style={styles.checkoutButtonText}>Checkout</Text>
             </Pressable>
 

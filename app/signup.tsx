@@ -2,18 +2,17 @@
 import { router } from "expo-router";
 import React from "react";
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from "react-native";
 
-const googleIcon = require("../assets/icons/google.png");
-const facebookIcon = require("../assets/icons/facebook.png");
-const fingerprintIcon = require("../assets/icons/fingerprint.png");
+import FacebookSvg from '../assets/icons/facebook.svg';
+import FingerprintSvg from '../assets/icons/fingerprint.svg';
+import GoogleSvg from '../assets/icons/google.svg';
 
 
 export default function SignupScreen() {
@@ -28,7 +27,7 @@ export default function SignupScreen() {
   const handleGoToLogin = () => {
     router.push("/login");
   };
-
+ 
   return (
     <View style={styles.container}>
       {/* Green header */}
@@ -100,18 +99,18 @@ export default function SignupScreen() {
 
           <View style={styles.socialRow}>
             <Pressable style={styles.socialPressable}>
-              <Image source={googleIcon} style={styles.socialIcon} />
+              <GoogleSvg width={40} height={40} />
             </Pressable>
 
             <Pressable style={styles.socialPressable}>
-              <Image source={facebookIcon} style={styles.socialIcon} />
+              <FacebookSvg width={40} height={40} />
             </Pressable>
 
             <Pressable
               style={styles.socialPressable}
               onPress={handleGoToLogin} // or later: fingerprint flow
             >
-              <Image source={fingerprintIcon} style={styles.socialIcon} />
+              <FingerprintSvg width={40} height={40} />
             </Pressable>
           </View>
 

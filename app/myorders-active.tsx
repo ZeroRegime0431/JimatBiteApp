@@ -115,20 +115,20 @@ export default function MyOrdersActiveScreen() {
       </View>
 
       <View style={styles.bottomNavigation}>
-        <Pressable style={styles.navIcon}>
-          <HomeSvg width={22} height={22} />
+        <Pressable style={styles.navIcon} onPress={() => router.push('./home-page')}>
+          <HomeSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navIcon}>
-          <BestsellingSvg width={22} height={22} />
+          <BestsellingSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navIcon}>
-          <FavouriteSvg width={22} height={22} />
+          <FavouriteSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navIcon}>
-          <RecommendationSvg width={22} height={22} />
+          <RecommendationSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navIcon}>
-          <SupportSvg width={22} height={22} />
+          <SupportSvg width={28} height={28} />
         </Pressable>
       </View>
     </View>
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   emptyStateText: { fontSize: 16, color: '#9CA3AF' },
   bottomNavigation: { 
     position: 'absolute', 
-    bottom: 12, 
+    bottom: 18, 
     left: 12, 
     right: 12, 
     flexDirection: 'row', 
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     paddingVertical: 10, 
     backgroundColor: '#1A5D1A', 
-    borderRadius: 24 
+    borderRadius: 34, 
   },
   navIcon: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
 

@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
@@ -19,6 +19,7 @@ import BlindBoxSvg from '../assets/HomePage/icons/snacks.svg';
 import VeganSvg from '../assets/HomePage/icons/vegan.svg';
 
 // Food images
+import StrawberryShakeSvg from '../assets/CartSideBar/images/strawberryshake.svg';
 import CoffeeSvg from '../assets/Category-Drinks/images/coffee.svg';
 import MojitoSvg from '../assets/Category-Drinks/images/mojito.svg';
 
@@ -51,6 +52,21 @@ export default function CategoryDrinkScreen() {
   const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
   const [showCartSidebar, setShowCartSidebar] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
+  const [currentTime, setCurrentTime] = useState('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      setCurrentTime(`${hours}:${minutes}`);
+    };
+    
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const categories: CategoryItem[] = [
     { id: '1', icon: BlindBoxSvg, label: 'Blind Box', pressed: false },
@@ -79,6 +95,15 @@ export default function CategoryDrinkScreen() {
       description: 'Espresso, icemilk, and a touch of sweetness- perfect to keep you awake.',
       image: CoffeeSvg,
     },
+    {
+      id: '3',
+      name: 'Strawberry Shake',
+      rating: '4.9',
+      verified: true,
+      price: '$20.00',
+      description: 'Creamy strawberry shake blended with fresh strawberries and vanilla ice cream.',
+      image: StrawberryShakeSvg,
+    },
   ];
 
   const handleCategoryPress = (categoryId: string) => {
@@ -99,7 +124,7 @@ export default function CategoryDrinkScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.timeText}>16:04</Text>
+        <Text style={styles.timeText}>{currentTime}</Text>
         <View style={styles.headerIcons}>
           <Pressable style={styles.iconButton} onPress={() => setShowNotificationSidebar(true)}>
             <BellSvg width={24} height={24} />

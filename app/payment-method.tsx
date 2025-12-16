@@ -1,5 +1,6 @@
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 // SVG icons
@@ -25,6 +26,55 @@ interface PaymentMethod {
 
 export default function PaymentMethodScreen() {
   const [selectedMethod, setSelectedMethod] = useState<string>('card');
+  const [savedCards, setSavedCards] = useState<any[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadSavedCards();
+      loadSelectedMethod();
+    }, [])
+  );
+
+  const loadSavedCards = async () => {
+    try {
+      const cards = await AsyncStorage.getItem('savedCards');
+      if (cards) {
+        setSavedCards(JSON.parse(cards));
+      }
+    } catch (error) {
+      console.error('Error loading cards:', error);
+    }
+  };
+
+  const loadSelectedMethod = async () => {
+    try {
+      const method = await AsyncStorage.getItem('selectedPaymentMethod');
+      if (method) {
+        setSelectedMethod(method);
+      }
+    } catch (error) {
+      console.error('Error loading selected method:', error);
+    }
+  };
+
+  const handleSelectMethod = async (methodId: string) => {
+    try {
+      setSelectedMethod(methodId);
+      await AsyncStorage.setItem('selectedPaymentMethod', methodId);
+    } catch (error) {
+      console.error('Error saving selected method:', error);
+    }
+  };
+
+  const removeCard = async (cardId: string) => {
+    try {
+      const updatedCards = savedCards.filter(card => card.id !== cardId);
+      await AsyncStorage.setItem('savedCards', JSON.stringify(updatedCards));
+      setSavedCards(updatedCards);
+    } catch (error) {
+      console.error('Error removing card:', error);
+    }
+  };
 
   const paymentMethods: PaymentMethod[] = [
     { id: 'card', name: 'Card', icon: CardSvg, details: '••• ••• ••• 43' },
@@ -46,30 +96,58 @@ export default function PaymentMethodScreen() {
 
       {/* Content */}
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {paymentMethods.map((method) => {
+        {paymentMethods.map((method, index) => {
           const IconComponent = method.icon;
           const isSelected = selectedMethod === method.id;
           
           return (
-            <Pressable
-              key={method.id}
-              style={styles.paymentItem}
-              onPress={() => setSelectedMethod(method.id)}
-            >
-              <View style={styles.iconContainer}>
-                <IconComponent width={32} height={32} />
-              </View>
-              <View style={styles.paymentDetails}>
-                {method.details ? (
-                  <Text style={styles.cardDetails}>{method.details}</Text>
-                ) : (
-                  <Text style={styles.paymentName}>{method.name}</Text>
-                )}
-              </View>
-              <View style={[styles.radioButton, isSelected && styles.radioButtonSelected]}>
-                {isSelected && <View style={styles.radioButtonInner} />}
-              </View>
-            </Pressable>
+            <React.Fragment key={method.id}>
+              <Pressable
+                style={styles.paymentItem}
+                onPress={() => handleSelectMethod(method.id)}
+              >
+                <View style={styles.iconContainer}>
+                  <IconComponent width={32} height={32} />
+                </View>
+                <View style={styles.paymentDetails}>
+                  {method.details ? (
+                    <Text style={styles.cardDetails}>{method.details}</Text>
+                  ) : (
+                    <Text style={styles.paymentName}>{method.name}</Text>
+                  )}
+                </View>
+                <View style={[styles.radioButton, isSelected && styles.radioButtonSelected]}>
+                  {isSelected && <View style={styles.radioButtonInner} />}
+                </View>
+              </Pressable>
+              
+              {/* Show saved cards after first card option */}
+              {index === 0 && savedCards.map((card) => (
+                <View key={card.id} style={styles.savedCardContainer}>
+                  <Pressable
+                    style={styles.savedCardItem}
+                    onPress={() => handleSelectMethod(`savedcard-${card.id}`)}
+                  >
+                    <View style={styles.savedCardIconContainer}>
+                      <CardSvg width={20} height={20} />
+                    </View>
+                    <View style={styles.savedCardDetails}>
+                      <Text style={styles.cardHolderName}>{card.cardName}</Text>
+                      <Text style={styles.cardNumberPreview}>•••• {card.cardNumber.slice(-4)}</Text>
+                    </View>
+                    <View style={[styles.radioButtonSmall, selectedMethod === `savedcard-${card.id}` && styles.radioButtonSelected]}>
+                      {selectedMethod === `savedcard-${card.id}` && <View style={styles.radioButtonInnerSmall} />}
+                    </View>
+                  </Pressable>
+                  <Pressable 
+                    style={styles.removeButton}
+                    onPress={() => removeCard(card.id)}
+                  >
+                    <Text style={styles.removeButtonText}>Remove</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </React.Fragment>
           );
         })}
 
@@ -194,6 +272,67 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: '#4CAF50',
+  },
+  savedCardContainer: {
+    marginLeft: 50,
+    marginTop: 8,
+    marginBottom: 8,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    padding: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4CAF50',
+  },
+  savedCardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  savedCardIconContainer: {
+    width: 32,
+    height: 32,
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  savedCardDetails: {
+    flex: 1,
+  },
+  cardHolderName: {
+    fontSize: 13,
+    color: '#333',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  cardNumberPreview: {
+    fontSize: 11,
+    color: '#666',
+  },
+  radioButtonSmall: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#D0D0D0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  radioButtonInnerSmall: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#4CAF50',
+  },
+  removeButton: {
+    marginTop: 8,
+    alignSelf: 'flex-end',
+  },
+  removeButtonText: {
+    fontSize: 12,
+    color: '#F44336',
+    fontWeight: '500',
   },
   addNewCardButton: {
     backgroundColor: '#E8F5E9',

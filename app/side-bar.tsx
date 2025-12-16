@@ -27,6 +27,21 @@ interface SideBarProps {
 export default function SideBar({ visible, onClose }: SideBarProps) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [profile, setProfile] = useState({ fullName: 'John Smith', email: 'Loremipsum@email.com' });
+  const [currentTime, setCurrentTime] = useState('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      setCurrentTime(`${hours}:${minutes}`);
+    };
+    
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -72,7 +87,7 @@ export default function SideBar({ visible, onClose }: SideBarProps) {
             <Pressable style={styles.backButton} onPress={onClose}>
               <BackArrowLeftSvg width={28} height={28} />
             </Pressable>
-            <Text style={styles.timeText}>16:04</Text>
+            <Text style={styles.timeText}>{currentTime}</Text>
           </View>
 
           <ScrollView 

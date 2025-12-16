@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
@@ -51,6 +51,21 @@ export default function CategoryDessertScreen() {
   const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
   const [showCartSidebar, setShowCartSidebar] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
+  const [currentTime, setCurrentTime] = useState('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      setCurrentTime(`${hours}:${minutes}`);
+    };
+    
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const categories: CategoryItem[] = [
     { id: '1', icon: BlindBoxSvg, label: 'Blind Box', pressed: false },
@@ -99,7 +114,7 @@ export default function CategoryDessertScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.timeText}>16:04</Text>
+        <Text style={styles.timeText}>{currentTime}</Text>
         <View style={styles.headerIcons}>
           <Pressable style={styles.iconButton} onPress={() => setShowNotificationSidebar(true)}>
             <BellSvg width={24} height={24} />

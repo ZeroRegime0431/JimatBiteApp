@@ -2,19 +2,18 @@
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from "react-native";
 
 // ICONS
-const googleIcon = require("../assets/icons/google.png");
-const facebookIcon = require("../assets/icons/facebook.png");
-const fingerprintIcon = require("../assets/icons/fingerprint.png");
+import FacebookSvg from '../assets/icons/facebook.svg';
+import FingerprintSvg from '../assets/icons/fingerprint.svg';
+import GoogleSvg from '../assets/icons/google.svg';
 
 export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
@@ -138,9 +137,9 @@ export default function LoginScreen() {
 
         {/* Logos */}
         <View style={styles.socialRow}>
-          <Image source={googleIcon} style={styles.socialIcon} />
-          <Image source={facebookIcon} style={styles.socialIcon} />
-          <Image source={fingerprintIcon} style={styles.socialIcon} />
+          <GoogleSvg width={40} height={40} />
+          <FacebookSvg width={40} height={40} />
+          <FingerprintSvg width={40} height={40} />
         </View>
 
         {/* Footer */}
