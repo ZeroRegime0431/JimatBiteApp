@@ -1,7 +1,8 @@
 // app/signup.tsx
 import { router } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,14 +15,56 @@ import FacebookSvg from '../assets/icons/facebook.svg';
 import FingerprintSvg from '../assets/icons/fingerprint.svg';
 import GoogleSvg from '../assets/icons/google.svg';
 
+// Firebase Authentication
+import { signUp } from '../services/auth';
 
 export default function SignupScreen() {
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
   const handleBack = () => {
     router.back();
   };
 
-  const handleSignup = () => {
-    console.log("Sign Up pressed");
+  const handleSignup = async () => {
+    // Basic validation
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      setError("Please fill in all required fields (Name, Email, Password) ❌");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long ❌");
+      return;
+    }
+
+    setError("");
+    setLoading(true);
+
+    try {
+      // Create account with Firebase
+      const result = await signUp(email.trim(), password, fullName.trim());
+
+      if (result.success) {
+        console.log('Signup successful — navigating to onboarding');
+        // Navigate to onboarding for new users
+        router.replace("/onboarding");
+      } else {
+        // Show error message from Firebase
+        setError(result.error || "Signup failed. Please try again.");
+      }
+    } catch (err) {
+      console.error('Signup error:', err);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoToLogin = () => {
@@ -44,40 +87,59 @@ export default function SignupScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.bodyContent}
         >
-          <Text style={styles.label}>Full name</Text>
+          <Text style={styles.label}>Full name *</Text>
           <TextInput
             placeholder="Your name"
             style={styles.input}
             placeholderTextColor="#9e8852"
+            value={fullName}
+            onChangeText={setFullName}
           />
 
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            placeholder="************"
-            secureTextEntry
-            style={styles.input}
-            placeholderTextColor="#9e8852"
-          />
-
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>Email *</Text>
           <TextInput
             placeholder="example@example.com"
             style={styles.input}
             placeholderTextColor="#9e8852"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
           />
 
-          <Text style={styles.label}>Mobile Number</Text>
+          <Text style={styles.label}>Password *</Text>
+          <View style={styles.passwordRow}>
+            <TextInput
+              placeholder="Minimum 6 characters"
+              secureTextEntry={!showPassword}
+              style={styles.passwordInput}
+              placeholderTextColor="#9e8852"
+              value={password}
+              onChangeText={setPassword}
+            />
+            <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.showBtn}>
+              <Text style={styles.showHideText}>
+                {showPassword ? "Hide" : "Show"}
+              </Text>
+            </Pressable>
+          </View>
+
+          <Text style={styles.label}>Mobile Number (Optional)</Text>
           <TextInput
             placeholder="+ 123 456 789"
             style={styles.input}
             placeholderTextColor="#9e8852"
             keyboardType="phone-pad"
+            value={mobileNumber}
+            onChangeText={setMobileNumber}
           />
 
-          <Text style={styles.label}>Date of birth</Text>
+          <Text style={styles.label}>Date of birth (Optional)</Text>
           <TextInput
             placeholder="DD / MM / YYYY"
             style={styles.input}
+            value={dateOfBirth}
+            onChangeText={setDateOfBirth}
             placeholderTextColor="#9e8852"
           />
 
@@ -87,8 +149,19 @@ export default function SignupScreen() {
             <Text style={styles.termsLink}>Privacy Policy</Text>.
           </Text>
 
-          <Pressable style={styles.primaryButton} onPress={handleSignup}>
-            <Text style={styles.primaryButtonText}>Sign Up</Text>
+          {/* Error message */}
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+          <Pressable 
+            style={[styles.primaryButton, loading && styles.primaryButtonDisabled]} 
+            onPress={handleSignup}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#1A5D1A" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Sign Up</Text>
+            )}
           </Pressable>
 
           <View style={styles.orRow}>
@@ -182,6 +255,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#245B2A",
   },
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFECA9",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 40,
+  },
+  passwordInput: {
+    flex: 1,
+    fontSize: 14,
+    color: "#245B2A",
+  },
+  showBtn: {
+    paddingHorizontal: 8,
+  },
+  showHideText: {
+    fontSize: 12,
+    color: "#245B2A",
+    fontWeight: "600",
+  },
+  errorText: {
+    color: "#D32F2F",
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 8,
+    marginBottom: 8,
+    fontWeight: "600",
+  },
   terms: {
     fontSize: 11,
     color: "#777",
@@ -199,6 +301,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     marginBottom: 16,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.6,
   },
   primaryButtonText: {
     fontSize: 16,

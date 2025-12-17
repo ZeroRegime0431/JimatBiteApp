@@ -2,6 +2,7 @@
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,8 +16,12 @@ import FacebookSvg from '../assets/icons/facebook.svg';
 import FingerprintSvg from '../assets/icons/fingerprint.svg';
 import GoogleSvg from '../assets/icons/google.svg';
 
+// Firebase Authentication
+import { signIn } from '../services/auth';
+
 export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // USER INPUT FIELDS
   const [email, setEmail] = useState("");
@@ -25,42 +30,35 @@ export default function LoginScreen() {
   // ERROR MESSAGE
   const [error, setError] = useState("");
 
-  // DUMMY USER ACCOUNTS
-  const users = [
-    { email: "test@example.com", password: "Test@1234" },
-    { email: "hamzabid@gmail.com", password: "Hamza@321" },
-    { email: "raiyon@gmail.com", password: "Raiyon#987" },
-    { email: "Yash@gmail.com", password: "Yash$789" },
-    { email: "Gladson@gmail.com", password: "Gladson!456" },
-  ];
-
-  // LOGIN VALIDATION FUNCTION
-  const handleLogin = () => {
+  // LOGIN FUNCTION WITH FIREBASE
+  const handleLogin = async () => {
+    // Validate inputs
     if (email.trim() === "" || password.trim() === "") {
       setError("Please fill in both email and password ❌");
       return;
     }
 
-    // Find user by email (case-insensitive)
-    const user = users.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase()
-    );
-
-    if (!user) {
-      setError("Email not found ❌");
-      return;
-    }
-
-    if (user.password !== password) {
-      setError("Wrong password ❌");
-      return;
-    }
-
-    // SUCCESS
     setError("");
-    console.log('Login successful — navigating to onboarding');
-    // use push here for testing; replace can be used instead to remove back history
-    router.replace("/onboarding");
+    setLoading(true);
+
+    try {
+      // Attempt to sign in with Firebase
+      const result = await signIn(email.trim(), password);
+
+      if (result.success) {
+        console.log('Login successful — navigating to home page');
+        // Navigate to home page on successful login
+        router.replace("/home-page");
+      } else {
+        // Show error message from Firebase
+        setError(result.error || "Login failed. Please try again.");
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -124,8 +122,16 @@ export default function LoginScreen() {
         </Pressable>
 
         {/* Log In Button */}
-        <Pressable style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>Log In</Text>
+        <Pressable 
+          style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.loginButtonText}>Log In</Text>
+          )}
         </Pressable>
 
         {/* Divider */}
@@ -280,6 +286,10 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     alignItems: "center",
     marginBottom: 20,
+  },
+
+  loginButtonDisabled: {
+    opacity: 0.6,
   },
 
   loginButtonText: {

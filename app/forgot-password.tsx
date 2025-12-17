@@ -1,9 +1,8 @@
-// app/setpassword.tsx
+// app/forgot-password.tsx
 import { router } from "expo-router";
 import React, { useState } from "react";
-
-
 import {
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -11,9 +10,44 @@ import {
   View
 } from "react-native";
 
-export default function SetPasswordScreen() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+// Firebase Authentication
+import { resetPassword } from '../services/auth';
+
+export default function ForgotPasswordScreen() {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleResetPassword = async () => {
+    if (!email.trim()) {
+      setError("Please enter your email address");
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+    setLoading(true);
+
+    try {
+      const result = await resetPassword(email.trim());
+
+      if (result.success) {
+        setSuccess("Password reset email sent! Check your inbox.");
+        // Optionally navigate back after a delay
+        setTimeout(() => {
+          router.back();
+        }, 3000);
+      } else {
+        setError(result.error || "Failed to send reset email");
+      }
+    } catch (err) {
+      console.error('Reset password error:', err);
+      setError("An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -23,59 +57,43 @@ export default function SetPasswordScreen() {
           <Text style={styles.backArrow}>{"<"}</Text>
         </Pressable>
 
-        <Text style={styles.headerTitle}>Set Password</Text>
+        <Text style={styles.headerTitle}>Forgot Password</Text>
       </View>
 
       {/* WHITE CARD */}
       <View style={styles.whiteCard}>
         <Text style={styles.description}>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-          eiusmod tempor incididunt ut labore et dolore magna aliqua.
+          Enter your email address and we'll send you a link to reset your password.
         </Text>
 
-        {/* Password */}
-        <Text style={styles.inputLabel}>Password</Text>
-        <View style={styles.passwordRow}>
-          <TextInput
-            style={styles.passwordInput}
-            secureTextEntry={!showPassword}
-            placeholder="***********"
-            placeholderTextColor="#7a7a7a"
-          />
+        {/* Email */}
+        <Text style={styles.inputLabel}>Email Address</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="example@example.com"
+          placeholderTextColor="#7a7a7a"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
 
-          <Pressable
-            onPress={() => setShowPassword(!showPassword)}
-            style={styles.showBtn}
-          >
-            <Text style={styles.showHideText}>
-              {showPassword ? "Hide" : "Show"}
-            </Text>
-          </Pressable>
-        </View>
+        {/* Error message */}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        {/* Confirm Password */}
-        <Text style={styles.inputLabel}>Confirm Password</Text>
-        <View style={styles.passwordRow}>
-          <TextInput
-            style={styles.passwordInput}
-            secureTextEntry={!showConfirmPassword}
-            placeholder="***********"
-            placeholderTextColor="#7a7a7a"
-          />
+        {/* Success message */}
+        {success ? <Text style={styles.successText}>{success}</Text> : null}
 
-          <Pressable
-            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-            style={styles.showBtn}
-          >
-            <Text style={styles.showHideText}>
-              {showConfirmPassword ? "Hide" : "Show"}
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* Button */}
-        <Pressable style={styles.createBtn}>
-          <Text style={styles.createBtnText}>Create Password</Text>
+        <Pressable 
+          style={[styles.setPasswordButton, loading && styles.setPasswordButtonDisabled]} 
+          onPress={handleResetPassword}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#1A5D1A" />
+          ) : (
+            <Text style={styles.setPasswordButtonText}>Send Reset Link</Text>
+          )}
         </Pressable>
       </View>
     </View>
@@ -146,35 +164,34 @@ const styles = StyleSheet.create({
     color: "#1A5D1A",
   },
 
-  // PASSWORD ROW
-  passwordRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  input: {
     backgroundColor: "#FFEFA9",
     borderRadius: 20,
     paddingHorizontal: 15,
     height: 48,
+    fontSize: 16,
+    color: "#333",
     marginBottom: 15,
   },
 
-  passwordInput: {
-    flex: 1,
-    fontSize: 16,
-    color: "#333",
+  errorText: {
+    color: "#D32F2F",
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 10,
+    fontWeight: "600",
   },
 
-  showBtn: {
-    paddingHorizontal: 8,
-  },
-
-  showHideText: {
-    fontSize: 14,
-    color: "#1A5D1A",
-    fontWeight: "700",
+  successText: {
+    color: "#4CAF50",
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 10,
+    fontWeight: "600",
   },
 
   // Button
-  createBtn: {
+  setPasswordButton: {
     backgroundColor: "#FFEB3B",
     paddingVertical: 15,
     borderRadius: 25,
@@ -182,7 +199,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  createBtnText: {
+  setPasswordButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  setPasswordButtonText: {
     fontSize: 16,
     fontWeight: "700",
     color: "#1A5D1A",
