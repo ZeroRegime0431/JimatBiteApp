@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,8 +16,9 @@ import FacebookSvg from '../assets/icons/facebook.svg';
 import FingerprintSvg from '../assets/icons/fingerprint.svg';
 import GoogleSvg from '../assets/icons/google.svg';
 
-// Firebase Authentication
+// Firebase Authentication and Database
 import { signUp } from '../services/auth';
+import { createUserProfile } from '../services/database';
 
 export default function SignupScreen() {
   const [fullName, setFullName] = useState("");
@@ -27,6 +29,10 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [dateModalVisible, setDateModalVisible] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(1);
+  const [selectedMonth, setSelectedMonth] = useState(1);
+  const [selectedYear, setSelectedYear] = useState(2000);
 
   const handleBack = () => {
     router.back();
@@ -51,7 +57,17 @@ export default function SignupScreen() {
       // Create account with Firebase
       const result = await signUp(email.trim(), password, fullName.trim());
 
-      if (result.success) {
+      if (result.success && result.user) {
+        // Save user profile to Firestore
+        const profileData = {
+          fullName: fullName.trim(),
+          email: email.trim(),
+          mobileNumber: mobileNumber.trim() || undefined,
+          dateOfBirth: dateOfBirth.trim() || undefined,
+        };
+        
+        await createUserProfile(result.user.uid, profileData);
+        
         console.log('Signup successful — navigating to onboarding');
         // Navigate to onboarding for new users
         router.replace("/onboarding");
@@ -70,6 +86,17 @@ export default function SignupScreen() {
   const handleGoToLogin = () => {
     router.push("/login");
   };
+
+  const handleDateConfirm = () => {
+    const formattedDate = `${String(selectedDay).padStart(2, '0')} / ${String(selectedMonth).padStart(2, '0')} / ${selectedYear}`;
+    setDateOfBirth(formattedDate);
+    setDateModalVisible(false);
+  };
+
+  // Generate year options from 1970 to 2050
+  const years = Array.from({ length: 81 }, (_, i) => 1970 + i);
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
  
   return (
     <View style={styles.container}>
@@ -124,7 +151,7 @@ export default function SignupScreen() {
             </Pressable>
           </View>
 
-          <Text style={styles.label}>Mobile Number (Optional)</Text>
+          <Text style={styles.label}>Mobile Number</Text>
           <TextInput
             placeholder="+ 123 456 789"
             style={styles.input}
@@ -134,14 +161,15 @@ export default function SignupScreen() {
             onChangeText={setMobileNumber}
           />
 
-          <Text style={styles.label}>Date of birth (Optional)</Text>
-          <TextInput
-            placeholder="DD / MM / YYYY"
+          <Text style={styles.label}>Date of birth</Text>
+          <Pressable 
             style={styles.input}
-            value={dateOfBirth}
-            onChangeText={setDateOfBirth}
-            placeholderTextColor="#9e8852"
-          />
+            onPress={() => setDateModalVisible(true)}
+          >
+            <Text style={[styles.dateText, !dateOfBirth && styles.placeholderText]}>
+              {dateOfBirth || "DD / MM / YYYY"}
+            </Text>
+          </Pressable>
 
           <Text style={styles.terms}>
             By continuing, you agree to{" "}
@@ -195,6 +223,109 @@ export default function SignupScreen() {
           </View>
         </ScrollView>
       </View>
+
+      {/* Date of Birth Modal */}
+      <Modal
+        visible={dateModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDateModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Select Date of Birth</Text>
+            
+            <View style={styles.pickerRow}>
+              {/* Day Picker */}
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>Day</Text>
+                <ScrollView style={styles.picker} showsVerticalScrollIndicator={false}>
+                  {days.map((day) => (
+                    <Pressable
+                      key={day}
+                      style={[
+                        styles.pickerItem,
+                        selectedDay === day && styles.pickerItemSelected
+                      ]}
+                      onPress={() => setSelectedDay(day)}
+                    >
+                      <Text style={[
+                        styles.pickerItemText,
+                        selectedDay === day && styles.pickerItemTextSelected
+                      ]}>
+                        {day}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Month Picker */}
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>Month</Text>
+                <ScrollView style={styles.picker} showsVerticalScrollIndicator={false}>
+                  {months.map((month) => (
+                    <Pressable
+                      key={month}
+                      style={[
+                        styles.pickerItem,
+                        selectedMonth === month && styles.pickerItemSelected
+                      ]}
+                      onPress={() => setSelectedMonth(month)}
+                    >
+                      <Text style={[
+                        styles.pickerItemText,
+                        selectedMonth === month && styles.pickerItemTextSelected
+                      ]}>
+                        {month}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Year Picker */}
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>Year</Text>
+                <ScrollView style={styles.picker} showsVerticalScrollIndicator={false}>
+                  {years.map((year) => (
+                    <Pressable
+                      key={year}
+                      style={[
+                        styles.pickerItem,
+                        selectedYear === year && styles.pickerItemSelected
+                      ]}
+                      onPress={() => setSelectedYear(year)}
+                    >
+                      <Text style={[
+                        styles.pickerItemText,
+                        selectedYear === year && styles.pickerItemTextSelected
+                      ]}>
+                        {year}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setDateModalVisible(false)}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleDateConfirm}
+              >
+                <Text style={styles.modalButtonTextConfirm}>Confirm</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -350,6 +481,97 @@ const styles = StyleSheet.create({
   },
   bottomLink: {
     fontSize: 13,
+    fontWeight: "600",
+    color: "#245B2A",
+  },
+  dateText: {
+    fontSize: 14,
+    color: "#245B2A",
+    paddingVertical: 2,
+  },
+  placeholderText: {
+    color: "#9e8852",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    width: "90%",
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#245B2A",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  pickerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  pickerContainer: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  pickerLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#245B2A",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  picker: {
+    height: 150,
+    backgroundColor: "#FFECA9",
+    borderRadius: 12,
+  },
+  pickerItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: "center",
+  },
+  pickerItemSelected: {
+    backgroundColor: "#FFF952",
+  },
+  pickerItemText: {
+    fontSize: 14,
+    color: "#245B2A",
+  },
+  pickerItemTextSelected: {
+    fontWeight: "700",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    marginHorizontal: 4,
+  },
+  modalButtonCancel: {
+    backgroundColor: "#E0E0E0",
+  },
+  modalButtonConfirm: {
+    backgroundColor: "#FFF952",
+  },
+  modalButtonTextCancel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#555",
+  },
+  modalButtonTextConfirm: {
+    fontSize: 14,
     fontWeight: "600",
     color: "#245B2A",
   },

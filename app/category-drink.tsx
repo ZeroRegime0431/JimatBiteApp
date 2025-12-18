@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { getMenuItems } from '../services/database';
+import type { MenuItem } from '../types';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
 import SideBar from './side-bar';
@@ -19,9 +21,6 @@ import BlindBoxSvg from '../assets/HomePage/icons/snacks.svg';
 import VeganSvg from '../assets/HomePage/icons/vegan.svg';
 
 // Food images
-import StrawberryShakeSvg from '../assets/CartSideBar/images/strawberryshake.svg';
-import CoffeeSvg from '../assets/Category-Drinks/images/coffee.svg';
-import MojitoSvg from '../assets/Category-Drinks/images/mojito.svg';
 
 // Bottom navigation icons
 import BestsellingSvg from '../assets/HomePage/icons/bestselling.svg';
@@ -53,6 +52,8 @@ export default function CategoryDrinkScreen() {
   const [showCartSidebar, setShowCartSidebar] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
+  const [foodItems, setFoodItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const updateTime = () => {
@@ -68,42 +69,25 @@ export default function CategoryDrinkScreen() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    loadMenuItems();
+  }, []);
+
+  const loadMenuItems = async () => {
+    setLoading(true);
+    const result = await getMenuItems('drink');
+    if (result.success && result.data) {
+      setFoodItems(result.data);
+    }
+    setLoading(false);
+  };
+
   const categories: CategoryItem[] = [
     { id: '1', icon: BlindBoxSvg, label: 'Blind Box', pressed: false },
     { id: '2', icon: MealSvg, label: 'Meal', pressed: false },
     { id: '3', icon: VeganSvg, label: 'Vegan', pressed: false },
     { id: '4', icon: BakerySvg, label: 'Dessert', pressed: false },
     { id: '5', icon: DrinksPressedSvg, label: 'Drinks', pressed: true },
-  ];
-
-  const foodItems: FoodItem[] = [
-    {
-      id: '1',
-      name: 'Mojito',
-      rating: '4.8',
-      verified: true,
-      price: '$15.00',
-      description: 'Made with white rum, fresh mint leaves, and lime for a crisp.',
-      image: MojitoSvg,
-    },
-    {
-      id: '2',
-      name: 'Iced Coffee',
-      rating: '4.8',
-      verified: true,
-      price: '$12.99',
-      description: 'Espresso, icemilk, and a touch of sweetness- perfect to keep you awake.',
-      image: CoffeeSvg,
-    },
-    {
-      id: '3',
-      name: 'Strawberry Shake',
-      rating: '4.9',
-      verified: true,
-      price: '$20.00',
-      description: 'Creamy strawberry shake blended with fresh strawberries and vanilla ice cream.',
-      image: StrawberryShakeSvg,
-    },
   ];
 
   const handleCategoryPress = (categoryId: string) => {
@@ -202,26 +186,49 @@ export default function CategoryDrinkScreen() {
             </View>
 
             {/* Food Items */}
-            {foodItems.map((item) => (
-              <View key={item.id} style={styles.foodCard}>
-                <View style={styles.foodImageContainer}>
-                  <item.image width="100%" height={200} preserveAspectRatio="none" />
-                </View>
-                <View style={styles.foodInfo}>
-                  <View style={styles.foodHeader}>
-                    <Text style={styles.foodName}>{item.name}</Text>
-                    <Text style={styles.foodPrice}>{item.price}</Text>
-                  </View>
-                  <View style={styles.foodMeta}>
-                    <View style={styles.ratingContainer}>
-                      <Text style={styles.ratingBadge}>{item.rating}</Text>
-                      {item.verified && <Text style={styles.verifiedBadge}>✓</Text>}
-                    </View>
-                  </View>
-                  <Text style={styles.foodDescription}>{item.description}</Text>
-                </View>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#1A5D1A" />
+                <Text style={styles.loadingText}>Loading drinks...</Text>
               </View>
-            ))}
+            ) : foodItems.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No drinks available</Text>
+                <Text style={styles.emptySubtext}>Check back later or add items via Populate button</Text>
+              </View>
+            ) : (
+              foodItems.map((item) => (
+                <View key={item.id} style={styles.foodCard}>
+                  <View style={styles.foodImageContainer}>
+                    {item.imageURL ? (
+                      <Image 
+                        source={{ uri: item.imageURL }} 
+                        style={styles.foodImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.placeholderImage}>
+                        <Text style={styles.placeholderText}>No Image</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.foodInfo}>
+                    <View style={styles.foodHeader}>
+                      <Text style={styles.foodName}>{item.name}</Text>
+                      <Text style={styles.foodPrice}>${item.price.toFixed(2)}</Text>
+                    </View>
+                    <View style={styles.foodMeta}>
+                      <View style={styles.ratingContainer}>
+                        <Text style={styles.ratingBadge}>{item.rating?.toFixed(1) || 'N/A'}</Text>
+                        <Text style={styles.verifiedBadge}>✓</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.foodDescription}>{item.description}</Text>
+                    <Text style={styles.restaurantName}>{item.restaurantName}</Text>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         </ScrollView>
       </View>
@@ -432,10 +439,56 @@ const styles = StyleSheet.create({
   foodImageContainer: {
     width: '100%',
     height: 200,
-    backgroundColor: '#fff',
+    backgroundColor: '#f5f5f5',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
+  },
+  foodImage: {
+    width: '100%',
+    height: '100%',
+  },
+  placeholderImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: '#999',
+    fontSize: 14,
+  },
+  loadingContainer: {
+    padding: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  emptyContainer: {
+    padding: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  restaurantName: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
   },
   foodInfo: {
     padding: 15,

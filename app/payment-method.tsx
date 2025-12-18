@@ -1,7 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { getCurrentUser } from '../services/auth';
+import { deletePaymentMethod, getUserPaymentMethods } from '../services/database';
+import type { PaymentMethod as PaymentMethodType } from '../types';
 
 // SVG icons
 import ApplePaySvg from '../assets/PaymentMethod/icons/applepay.svg';
@@ -26,54 +29,57 @@ interface PaymentMethod {
 
 export default function PaymentMethodScreen() {
   const [selectedMethod, setSelectedMethod] = useState<string>('card');
-  const [savedCards, setSavedCards] = useState<any[]>([]);
+  const [savedCards, setSavedCards] = useState<PaymentMethodType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [viewingCard, setViewingCard] = useState<PaymentMethodType | null>(null);
+  const [showCardDetails, setShowCardDetails] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       loadSavedCards();
-      loadSelectedMethod();
     }, [])
   );
 
   const loadSavedCards = async () => {
-    try {
-      const cards = await AsyncStorage.getItem('savedCards');
-      if (cards) {
-        setSavedCards(JSON.parse(cards));
+    setLoading(true);
+    const user = getCurrentUser();
+    if (user) {
+      const result = await getUserPaymentMethods(user.uid);
+      if (result.success && result.data) {
+        setSavedCards(result.data);
+        // Set default card as selected if exists
+        const defaultCard = result.data.find(card => card.isDefault);
+        if (defaultCard) {
+          setSelectedMethod(`card-${defaultCard.id}`);
+        }
       }
-    } catch (error) {
-      console.error('Error loading cards:', error);
     }
-  };
-
-  const loadSelectedMethod = async () => {
-    try {
-      const method = await AsyncStorage.getItem('selectedPaymentMethod');
-      if (method) {
-        setSelectedMethod(method);
-      }
-    } catch (error) {
-      console.error('Error loading selected method:', error);
-    }
+    setLoading(false);
   };
 
   const handleSelectMethod = async (methodId: string) => {
+    setSelectedMethod(methodId);
+    // Save to AsyncStorage for checkout-payment to use
     try {
-      setSelectedMethod(methodId);
       await AsyncStorage.setItem('selectedPaymentMethod', methodId);
     } catch (error) {
-      console.error('Error saving selected method:', error);
+      console.error('Error saving payment method:', error);
     }
   };
 
   const removeCard = async (cardId: string) => {
-    try {
-      const updatedCards = savedCards.filter(card => card.id !== cardId);
-      await AsyncStorage.setItem('savedCards', JSON.stringify(updatedCards));
-      setSavedCards(updatedCards);
-    } catch (error) {
-      console.error('Error removing card:', error);
+    setRemoving(cardId);
+    const result = await deletePaymentMethod(cardId);
+    if (result.success) {
+      setSavedCards(cards => cards.filter(card => card.id !== cardId));
+      if (selectedMethod === `card-${cardId}`) {
+        setSelectedMethod('card');
+      }
+    } else {
+      alert('Failed to remove card');
     }
+    setRemoving(null);
   };
 
   const paymentMethods: PaymentMethod[] = [
@@ -96,60 +102,82 @@ export default function PaymentMethodScreen() {
 
       {/* Content */}
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {paymentMethods.map((method, index) => {
-          const IconComponent = method.icon;
-          const isSelected = selectedMethod === method.id;
-          
-          return (
-            <React.Fragment key={method.id}>
-              <Pressable
-                style={styles.paymentItem}
-                onPress={() => handleSelectMethod(method.id)}
-              >
-                <View style={styles.iconContainer}>
-                  <IconComponent width={32} height={32} />
-                </View>
-                <View style={styles.paymentDetails}>
-                  {method.details ? (
-                    <Text style={styles.cardDetails}>{method.details}</Text>
-                  ) : (
-                    <Text style={styles.paymentName}>{method.name}</Text>
-                  )}
-                </View>
-                <View style={[styles.radioButton, isSelected && styles.radioButtonSelected]}>
-                  {isSelected && <View style={styles.radioButtonInner} />}
-                </View>
-              </Pressable>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#1A5D1A" />
+            <Text style={styles.loadingText}>Loading payment methods...</Text>
+          </View>
+        ) : (
+          <>
+            {paymentMethods.map((method, index) => {
+              const IconComponent = method.icon;
+              const isSelected = selectedMethod === method.id;
               
-              {/* Show saved cards after first card option */}
-              {index === 0 && savedCards.map((card) => (
-                <View key={card.id} style={styles.savedCardContainer}>
+              return (
+                <React.Fragment key={method.id}>
                   <Pressable
-                    style={styles.savedCardItem}
-                    onPress={() => handleSelectMethod(`savedcard-${card.id}`)}
+                    style={styles.paymentItem}
+                    onPress={() => handleSelectMethod(method.id)}
                   >
-                    <View style={styles.savedCardIconContainer}>
-                      <CardSvg width={20} height={20} />
+                    <View style={styles.iconContainer}>
+                      <IconComponent width={32} height={32} />
                     </View>
-                    <View style={styles.savedCardDetails}>
-                      <Text style={styles.cardHolderName}>{card.cardName}</Text>
-                      <Text style={styles.cardNumberPreview}>•••• {card.cardNumber.slice(-4)}</Text>
+                    <View style={styles.paymentDetails}>
+                      {method.details ? (
+                        <Text style={styles.cardDetails}>{method.details}</Text>
+                      ) : (
+                        <Text style={styles.paymentName}>{method.name}</Text>
+                      )}
                     </View>
-                    <View style={[styles.radioButtonSmall, selectedMethod === `savedcard-${card.id}` && styles.radioButtonSelected]}>
-                      {selectedMethod === `savedcard-${card.id}` && <View style={styles.radioButtonInnerSmall} />}
+                    <View style={[styles.radioButton, isSelected && styles.radioButtonSelected]}>
+                      {isSelected && <View style={styles.radioButtonInner} />}
                     </View>
                   </Pressable>
-                  <Pressable 
-                    style={styles.removeButton}
-                    onPress={() => removeCard(card.id)}
-                  >
-                    <Text style={styles.removeButtonText}>Remove</Text>
-                  </Pressable>
-                </View>
-              ))}
-            </React.Fragment>
-          );
-        })}
+                  
+                  {/* Show saved cards after first card option */}
+                  {index === 0 && savedCards.map((card) => (
+                    <View key={card.id} style={styles.savedCardContainer}>
+                      <Pressable
+                        style={styles.savedCardItem}
+                        onPress={() => handleSelectMethod(`card-${card.id}`)}
+                      >
+                        <View style={styles.savedCardIconContainer}>
+                          <CardSvg width={20} height={20} />
+                        </View>
+                        <View style={styles.savedCardDetails}>
+                          <Text style={styles.cardHolderName}>{card.cardHolderName}</Text>
+                          <Text style={styles.cardNumberPreview}>•••• {card.cardNumber}</Text>
+                        </View>
+                        <View style={[styles.radioButtonSmall, selectedMethod === `card-${card.id}` && styles.radioButtonSelected]}>
+                          {selectedMethod === `card-${card.id}` && <View style={styles.radioButtonInnerSmall} />}
+                        </View>
+                      </Pressable>
+                      <View style={styles.cardActions}>
+                        <Pressable 
+                          style={styles.detailsButton}
+                          onPress={() => { setViewingCard(card); setShowCardDetails(false); }}
+                        >
+                          <Text style={styles.detailsButtonText}>Details</Text>
+                        </Pressable>
+                        <Pressable 
+                          style={[styles.removeButton, removing === card.id && styles.removeButtonDisabled]}
+                          onPress={() => removeCard(card.id)}
+                          disabled={removing === card.id}
+                        >
+                          {removing === card.id ? (
+                            <ActivityIndicator size="small" color="#FF4444" />
+                          ) : (
+                            <Text style={styles.removeButtonText}>Remove</Text>
+                          )}
+                        </Pressable>
+                      </View>
+                    </View>
+                  ))}
+                </React.Fragment>
+              );
+            })}
+          </>
+        )}
 
         <Pressable 
           style={styles.addNewCardButton}
@@ -158,6 +186,73 @@ export default function PaymentMethodScreen() {
           <Text style={styles.addNewCardText}>Add New Card</Text>
         </Pressable>
       </ScrollView>
+
+      {/* Card Details Modal */}
+      <Modal
+        visible={viewingCard !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setViewingCard(null)}
+      >
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => setViewingCard(null)}
+        >
+          <View style={styles.detailsModal}>
+            <Text style={styles.detailsModalTitle}>Card Details</Text>
+            
+            {viewingCard && (
+              <>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Card Holder Name</Text>
+                  <Text style={styles.detailValue}>{viewingCard.cardHolderName}</Text>
+                </View>
+                
+                <View style={styles.detailRow}>
+                  <View style={styles.detailRowHeader}>
+                    <Text style={styles.detailLabel}>Card Number</Text>
+                    <Pressable onPress={() => setShowCardDetails(!showCardDetails)}>
+                      <Text style={styles.showHideText}>{showCardDetails ? 'Hide' : 'Show'}</Text>
+                    </Pressable>
+                  </View>
+                  <Text style={styles.detailValue}>
+                    {showCardDetails ? `**** **** **** ${viewingCard.cardNumber}` : `•••• •••• •••• ${viewingCard.cardNumber}`}
+                  </Text>
+                </View>
+                
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Expiry Date</Text>
+                  <Text style={styles.detailValue}>{viewingCard.expiryDate}</Text>
+                </View>
+                
+                {showCardDetails && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>CVV</Text>
+                    <Text style={styles.detailValue}>•••</Text>
+                  </View>
+                )}
+                
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Type</Text>
+                  <Text style={styles.detailValue}>{viewingCard.type === 'card' ? 'Credit/Debit Card' : viewingCard.type}</Text>
+                </View>
+                
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Default Card</Text>
+                  <Text style={styles.detailValue}>{viewingCard.isDefault ? 'Yes' : 'No'}</Text>
+                </View>
+                
+                <Pressable 
+                  style={styles.closeButton}
+                  onPress={() => setViewingCard(null)}
+                >
+                  <Text style={styles.closeButtonText}>Close</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
@@ -325,14 +420,107 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#4CAF50',
   },
-  removeButton: {
+  cardActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
     marginTop: 8,
-    alignSelf: 'flex-end',
+    gap: 8,
+  },
+  detailsButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: '#E3F2FD',
+    borderRadius: 6,
+  },
+  detailsButtonText: {
+    fontSize: 12,
+    color: '#1976D2',
+    fontWeight: '600',
+  },
+  removeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 6,
   },
   removeButtonText: {
     fontSize: 12,
     color: '#F44336',
     fontWeight: '500',
+  },
+  removeButtonDisabled: {
+    opacity: 0.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailsModal: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+  },
+  detailsModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1A5D1A',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  detailRow: {
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    paddingBottom: 8,
+  },
+  detailRowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: '#888',
+    fontWeight: '500',
+  },
+  showHideText: {
+    fontSize: 12,
+    color: '#1976D2',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  detailValue: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+  },
+  closeButton: {
+    backgroundColor: '#1A5D1A',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
   },
   addNewCardButton: {
     backgroundColor: '#E8F5E9',

@@ -1,7 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { getCurrentUser } from '../services/auth';
+import { getUserProfile } from '../services/database';
 
 // SVG icons
 import HomeSvg from '../assets/HomePage/icons/home.svg';
@@ -45,10 +46,15 @@ export default function SideBar({ visible, onClose }: SideBarProps) {
 
   useEffect(() => {
     const loadProfile = async () => {
-      const savedProfile = await AsyncStorage.getItem('profile');
-      if (savedProfile) {
-        const { fullName, email } = JSON.parse(savedProfile);
-        setProfile({ fullName, email });
+      const user = getCurrentUser();
+      if (user) {
+        const result = await getUserProfile(user.uid);
+        if (result.success && result.data) {
+          setProfile({
+            fullName: result.data.fullName,
+            email: result.data.email
+          });
+        }
       }
     };
     if (visible) {

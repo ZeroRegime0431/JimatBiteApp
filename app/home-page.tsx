@@ -1,5 +1,6 @@
+import { auth } from '@/config/firebase';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dimensions, FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -74,6 +75,18 @@ export default function HomePage() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [cartVisible, setCartVisible] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Admin emails that can see the populate button
+  const ADMIN_EMAILS = ['ali@example.com', 'hamza@example.com'];
+
+  useEffect(() => {
+    // Check if current user is an admin
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.email) {
+      setIsAdmin(ADMIN_EMAILS.includes(currentUser.email.toLowerCase()));
+    }
+  }, []);
 
   const getGreeting = () => {
     const currentHour = new Date().getHours();
@@ -134,8 +147,20 @@ export default function HomePage() {
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 120 }}>
         <View style={styles.greetingCard}>
-          <ThemedText type="title" style={styles.greetingTitle}>{greeting.title}</ThemedText>
-          <ThemedText type="subtitle" style={styles.greetingSub}>{greeting.subtitle}</ThemedText>
+          <View style={styles.greetingHeader}>
+            <View style={styles.greetingTextContainer}>
+              <ThemedText type="title" style={styles.greetingTitle}>{greeting.title}</ThemedText>
+              <ThemedText type="subtitle" style={styles.greetingSub}>{greeting.subtitle}</ThemedText>
+            </View>
+            {isAdmin && (
+              <Pressable 
+                style={styles.populateButton}
+                onPress={() => router.push('./populate-menu')}
+              >
+                <ThemedText style={styles.populateButtonText}>📝 Populate</ThemedText>
+              </Pressable>
+            )}
+          </View>
 
           <View style={styles.categoriesRow}>
             {categoryIcons.map((cat) => (
@@ -296,8 +321,12 @@ const styles = StyleSheet.create({
 
   content: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 0, borderTopRightRadius: 0, marginTop: -2 },
   greetingCard: { padding: 18 },
+  greetingHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  greetingTextContainer: { flex: 1 },
   greetingTitle: { color: '#1A5D1A', fontSize: 28, fontWeight: 'bold' },
   greetingSub: { color: '#7a7a7a', marginTop: 4, fontSize: 12 },
+  populateButton: { backgroundColor: '#1A5D1A', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, marginLeft: 10 },
+  populateButtonText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 
   categoriesRow: { flexDirection: 'row', marginTop: 54, justifyContent: 'space-between' },
   categoryItem: { alignItems: 'center', width: (width - 36) / 5 },

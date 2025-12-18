@@ -1,7 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { getCurrentUser } from '../services/auth';
+import { getUserPaymentMethods, savePaymentMethod } from '../services/database';
+import type { PaymentMethod } from '../types';
 
 // SVG icons
 import DisplayCardSvg from '../assets/PaymentMethod-AddCard/icons/displaycard.svg';
@@ -15,28 +17,29 @@ import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
 
 export default function AddCardScreen() {
-  const [cardName, setCardName] = useState('John Smith');
-  const [cardNumber, setCardNumber] = useState('000 000 000 00');
-  const [expiryDate, setExpiryDate] = useState('04/28');
-  const [cvv, setCvv] = useState('000');
+  const [cardName, setCardName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvv, setCvv] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('04');
-  const [selectedYear, setSelectedYear] = useState('28');
+  const [selectedMonth, setSelectedMonth] = useState('01');
+  const [selectedYear, setSelectedYear] = useState('25');
   const [errorMessage, setErrorMessage] = useState('');
-  const [existingCards, setExistingCards] = useState<any[]>([]);
+  const [existingCards, setExistingCards] = useState<PaymentMethod[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [showCVV, setShowCVV] = useState(false);
 
   const months = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
   const years = Array.from({ length: 31 }, (_, i) => (2020 + i).toString().slice(-2));
 
   useEffect(() => {
     const loadCards = async () => {
-      try {
-        const cards = await AsyncStorage.getItem('savedCards');
-        if (cards) {
-          setExistingCards(JSON.parse(cards));
+      const user = getCurrentUser();
+      if (user) {
+        const result = await getUserPaymentMethods(user.uid);
+        if (result.success && result.data) {
+          setExistingCards(result.data);
         }
-      } catch (error) {
-        console.error('Error loading cards:', error);
       }
     };
     loadCards();
@@ -48,44 +51,79 @@ export default function AddCardScreen() {
   };
 
   const handleSaveCard = async () => {
-    try {
-      // Check if max limit reached (5 cards)
-      if (existingCards.length >= 5) {
-        setErrorMessage('Maximum limit of 5 cards reached');
-        setTimeout(() => setErrorMessage(''), 3000);
-        return;
-      }
+    // Validation
+    if (!cardName.trim()) {
+      setErrorMessage('Card holder name is required');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
 
-      // Check for duplicate card
-      const isDuplicate = existingCards.some(
-        card => card.cardNumber === cardNumber && card.cardName === cardName
-      );
+    if (!cardNumber.trim() || cardNumber.replace(/\s/g, '').length < 13) {
+      setErrorMessage('Invalid card number');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
 
-      if (isDuplicate) {
-        setErrorMessage('This card already exists');
-        setTimeout(() => setErrorMessage(''), 3000);
-        return;
-      }
+    if (!expiryDate.trim()) {
+      setErrorMessage('Expiry date is required');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
 
-      // Create new card with unique ID
-      const newCard = {
-        id: Date.now().toString(),
-        cardName,
-        cardNumber,
-        expiryDate,
-        cvv,
-      };
+    if (!cvv.trim() || cvv.length < 3) {
+      setErrorMessage('Invalid CVV');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
 
-      // Add to existing cards array
-      const updatedCards = [...existingCards, newCard];
-      await AsyncStorage.setItem('savedCards', JSON.stringify(updatedCards));
-      
-      // Clear error and navigate back
+    const user = getCurrentUser();
+    if (!user) {
+      setErrorMessage('You must be logged in');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
+
+    // Check if max limit reached (5 cards)
+    if (existingCards.length >= 5) {
+      setErrorMessage('Maximum limit of 5 cards reached');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
+
+    // Get last 4 digits for storage
+    const last4 = cardNumber.replace(/\s/g, '').slice(-4);
+
+    // Check for duplicate card
+    const isDuplicate = existingCards.some(
+      card => card.cardNumber === last4 && card.cardHolderName === cardName.trim()
+    );
+
+    if (isDuplicate) {
+      setErrorMessage('This card already exists');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
+
+    setSaving(true);
+
+    // Create new payment method
+    const isFirstCard = existingCards.length === 0;
+    const result = await savePaymentMethod({
+      userId: user.uid,
+      type: 'card',
+      cardNumber: last4, // Store only last 4 digits
+      cardHolderName: cardName.trim(),
+      expiryDate: expiryDate,
+      isDefault: isFirstCard, // First card is default
+    });
+
+    setSaving(false);
+
+    if (result.success) {
       setErrorMessage('');
       router.back();
-    } catch (error) {
-      console.error('Error saving card:', error);
-      setErrorMessage('Error saving card');
+    } else {
+      setErrorMessage(result.error || 'Error saving card');
       setTimeout(() => setErrorMessage(''), 3000);
     }
   };
@@ -112,7 +150,7 @@ export default function AddCardScreen() {
         <View style={styles.cardOverlay}>
           <View style={styles.cardTopRow}>
             <View style={styles.flex1} />
-            <Text style={styles.cvvPreview}>{cvv}</Text>
+            <Text style={styles.cvvPreview}>{showCVV ? cvv : '***'}</Text>
           </View>
           <Text style={styles.cardNumberPreview}>{cardNumber}</Text>
           <View style={styles.cardBottomRow}>
@@ -157,15 +195,23 @@ export default function AddCardScreen() {
           </View>
           <View style={styles.halfWidth}>
             <Text style={styles.label}>CVV</Text>
-            <TextInput
-              style={styles.input}
-              value={cvv}
-              onChangeText={setCvv}
-              placeholder="000"
-              keyboardType="numeric"
-              maxLength={3}
-              secureTextEntry
-            />
+            <View style={styles.cvvInputContainer}>
+              <TextInput
+                style={styles.cvvInput}
+                value={cvv}
+                onChangeText={setCvv}
+                placeholder="000"
+                keyboardType="numeric"
+                maxLength={3}
+                secureTextEntry={!showCVV}
+              />
+              <Pressable 
+                style={styles.cvvToggle}
+                onPress={() => setShowCVV(!showCVV)}
+              >
+                <Text style={styles.cvvToggleText}>{showCVV ? '👁️' : '👁️‍🗨️'}</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
 
@@ -175,8 +221,16 @@ export default function AddCardScreen() {
           </View>
         ) : null}
 
-        <Pressable style={styles.saveButton} onPress={handleSaveCard}>
-          <Text style={styles.saveButtonText}>Save Card</Text>
+        <Pressable 
+          style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
+          onPress={handleSaveCard}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save Card</Text>
+          )}
         </Pressable>
       </View>
       </ScrollView>
@@ -406,6 +460,28 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
+  cvvInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F8F8',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  cvvInput: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#222',
+  },
+  cvvToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  cvvToggleText: {
+    fontSize: 18,
+  },
   saveButton: {
     backgroundColor: '#26a90bff',
     borderRadius: 8,
@@ -413,11 +489,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
   },
+  saveButtonDisabled: {
+    backgroundColor: '#A5D6A7',
+  },
   saveButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  },  errorContainer: {
+  },
+  errorContainer: {
     backgroundColor: '#FFEBEE',
     borderRadius: 8,
     padding: 12,

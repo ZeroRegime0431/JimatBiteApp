@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { getMenuItems } from '../services/database';
+import { MenuItem } from '../types';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
 import SideBar from './side-bar';
@@ -19,8 +21,6 @@ import BlindBoxSvg from '../assets/HomePage/icons/snacks.svg';
 import VeganSvg from '../assets/HomePage/icons/vegan.svg';
 
 // Food images
-import HotPotSvg from '../assets/Category-Meal/images/hotpot.svg';
-import MeeTarikSvg from '../assets/Category-Meal/images/meetarik.svg';
 
 // Bottom navigation icons
 import BestsellingSvg from '../assets/HomePage/icons/bestselling.svg';
@@ -52,6 +52,8 @@ export default function CategoryMealScreen() {
   const [showCartSidebar, setShowCartSidebar] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
+  const [foodItems, setFoodItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const updateTime = () => {
@@ -67,33 +69,25 @@ export default function CategoryMealScreen() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    loadMenuItems();
+  }, []);
+
+  const loadMenuItems = async () => {
+    setLoading(true);
+    const result = await getMenuItems('meal');
+    if (result.success && result.data) {
+      setFoodItems(result.data);
+    }
+    setLoading(false);
+  };
+
   const categories: CategoryItem[] = [
     { id: '1', icon: BlindBoxSvg, label: 'Blind Box', pressed: false },
     { id: '2', icon: MealPressedSvg, label: 'Meal', pressed: true },
     { id: '3', icon: VeganSvg, label: 'Vegan', pressed: false },
     { id: '4', icon: BakerySvg, label: 'Dessert', pressed: false },
     { id: '5', icon: DrinksSvg, label: 'Drinks', pressed: false },
-  ];
-
-  const foodItems: FoodItem[] = [
-    {
-      id: '1',
-      name: 'Mee Tarik Set',
-      rating: '4.8',
-      verified: true,
-      price: '$2.96',
-      description: 'Lengthy Ramen, tofu+Meat ball or Mini Cucumber+Hot Roll+Kimchi choose two',
-      image: MeeTarikSvg,
-    },
-    {
-      id: '2',
-      name: 'Spicy HotPot Set',
-      rating: '4.9',
-      verified: true,
-      price: '$2.96',
-      description: 'Mix and match the package, select 5 out of the 10 options',
-      image: HotPotSvg,
-    },
   ];
 
   const handleCategoryPress = (categoryId: string) => {
@@ -192,26 +186,41 @@ export default function CategoryMealScreen() {
             </View>
 
             {/* Food Items */}
-            {foodItems.map((item) => (
-              <View key={item.id} style={styles.foodCard}>
-                <View style={styles.foodImageContainer}>
-                  <item.image width="100%" height={200} preserveAspectRatio="none" />
-                </View>
-                <View style={styles.foodInfo}>
-                  <View style={styles.foodHeader}>
-                    <Text style={styles.foodName}>{item.name}</Text>
-                    <Text style={styles.foodPrice}>{item.price}</Text>
-                  </View>
-                  <View style={styles.foodMeta}>
-                    <View style={styles.ratingContainer}>
-                      <Text style={styles.ratingBadge}>{item.rating}</Text>
-                      {item.verified && <Text style={styles.verifiedBadge}>✓</Text>}
-                    </View>
-                  </View>
-                  <Text style={styles.foodDescription}>{item.description}</Text>
-                </View>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#4CAF50" />
+                <Text style={styles.loadingText}>Loading meals...</Text>
               </View>
-            ))}
+            ) : foodItems.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No meals found</Text>
+              </View>
+            ) : (
+              foodItems.map((item) => (
+                <View key={item.id} style={styles.foodCard}>
+                  <View style={styles.foodImageContainer}>
+                    <Image 
+                      source={{ uri: item.imageURL }} 
+                      style={styles.foodImage}
+                    />
+                  </View>
+                  <View style={styles.foodInfo}>
+                    <View style={styles.foodHeader}>
+                      <Text style={styles.foodName}>{item.name}</Text>
+                      <Text style={styles.foodPrice}>${item.price.toFixed(2)}</Text>
+                    </View>
+                    <View style={styles.foodMeta}>
+                      <View style={styles.ratingContainer}>
+                        <Text style={styles.ratingBadge}>{item.rating}</Text>
+                        <Text style={styles.verifiedBadge}>✓</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.foodDescription}>{item.description}</Text>
+                    <Text style={styles.restaurantName}>{item.restaurantName}</Text>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         </ScrollView>
       </View>
@@ -479,6 +488,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     lineHeight: 18,
+  },
+  foodImage: {
+    width: '100%',
+    height: 200,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  restaurantName: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 4,
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#666',
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
   },
   bottomNav: {
     position: 'absolute',

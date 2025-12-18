@@ -1,7 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { getCurrentUser } from '../services/auth';
+import { getCart, saveCart } from '../services/database';
+import type { CartItem as CartItemType } from '../types';
 
 // SVG icons
 import CartSvg from '../assets/CartSideBar/icons/cart.svg';
@@ -19,19 +21,14 @@ interface CartSidebarProps {
   onClose: () => void;
 }
 
-interface CartItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  date: string;
-  time: string;
+interface CartItemDisplay extends CartItemType {
   image: React.FC<any>;
 }
 
 export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState<CartItemDisplay[]>([]);
   const [currentTime, setCurrentTime] = useState('');
+  const [loading, setLoading] = useState(true);
 
   // Update time every second
   useEffect(() => {
@@ -48,77 +45,77 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // Load cart items from AsyncStorage when component mounts
+  // Load cart items when sidebar becomes visible
   useEffect(() => {
-    loadCartItems();
-  }, []);
+    if (visible) {
+      loadCartItems();
+    }
+  }, [visible]);
 
-  // Save cart items to AsyncStorage whenever they change
+  // Save cart items whenever they change
   useEffect(() => {
-    saveCartItems();
-  }, [cartItems]);
+    if (!loading && cartItems.length > 0) {
+      saveCartItems();
+    }
+  }, [cartItems, loading]);
 
   const loadCartItems = async () => {
-    try {
-      const savedCart = await AsyncStorage.getItem('cartItems');
-      if (savedCart) {
-        const items = JSON.parse(savedCart);
-        // Check if it's not an empty array
-        if (items.length > 0) {
-          // Map the saved items back to include image components
-          const mappedItems = items.map((item: any) => ({
-            ...item,
-            image: item.id === '1' ? StrawberrySvg : LasagnaSvg,
-          }));
-          setCartItems(mappedItems);
-        } else {
-          // Empty array saved, load defaults
-          loadDefaults();
-        }
+    setLoading(true);
+    const user = getCurrentUser();
+    if (user) {
+      const result = await getCart(user.uid);
+      if (result.success && result.data && result.data.items.length > 0) {
+        // Map items with image components
+        const mappedItems: CartItemDisplay[] = result.data.items.map((item) => ({
+          ...item,
+          image: item.name.toLowerCase().includes('shake') ? StrawberrySvg : LasagnaSvg,
+        }));
+        setCartItems(mappedItems);
       } else {
-        // No saved cart, load defaults
-        loadDefaults();
+        // Load demo items for new users
+        loadDemoItems();
       }
-    } catch (error) {
-      console.error('Error loading cart items:', error);
-      loadDefaults();
     }
+    setLoading(false);
   };
 
-  const loadDefaults = () => {
-    const defaultItems = [
+  const loadDemoItems = () => {
+    const demoItems: CartItemDisplay[] = [
       {
-        id: '1',
+        menuItemId: 'demo-1',
         name: 'Strawberry Shake',
         price: 20.00,
         quantity: 2,
-        date: '29/11/24',
-        time: '15:00',
+        imageURL: '',
+        restaurantId: 'demo-restaurant',
+        restaurantName: 'Demo Restaurant',
         image: StrawberrySvg,
       },
       {
-        id: '2',
+        menuItemId: 'demo-2',
         name: 'Broccoli Lasagna',
         price: 12.00,
         quantity: 1,
-        date: '29/11/24',
-        time: '12:00',
+        imageURL: '',
+        restaurantId: 'demo-restaurant',
+        restaurantName: 'Demo Restaurant',
         image: LasagnaSvg,
       },
     ];
-    setCartItems(defaultItems);
+    setCartItems(demoItems);
   };
 
   const saveCartItems = async () => {
-    try {
-      // Only save if there are items (don't save empty array)
-      if (cartItems.length > 0) {
-        // Save cart items without the image component (can't serialize functions)
-        const itemsToSave = cartItems.map(({ image, ...item }) => item);
-        await AsyncStorage.setItem('cartItems', JSON.stringify(itemsToSave));
-      }
-    } catch (error) {
-      console.error('Error saving cart items:', error);
+    const user = getCurrentUser();
+    if (user) {
+      // Save without image components
+      const itemsToSave = cartItems.map(({ image, ...item }) => item);
+      const subtotal = itemsToSave.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      
+      await saveCart(user.uid, {
+        items: itemsToSave,
+        totalAmount: subtotal,
+      });
     }
   };
 
@@ -127,20 +124,24 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
   const delivery = 3.00;
   const total = subtotal + taxAndFees + delivery;
 
-  const incrementQuantity = (id: string) => {
+  const incrementQuantity = (menuItemId: string) => {
     setCartItems(items => 
       items.map(item => 
-        item.id === id ? { ...item, quantity: item.quantity + 1 } : item
+        item.menuItemId === menuItemId ? { ...item, quantity: item.quantity + 1 } : item
       )
     );
   };
 
-  const decrementQuantity = (id: string) => {
+  const decrementQuantity = (menuItemId: string) => {
     setCartItems(items => 
       items.map(item => 
-        item.id === id && item.quantity > 1 ? { ...item, quantity: item.quantity - 1 } : item
+        item.menuItemId === menuItemId && item.quantity > 1 ? { ...item, quantity: item.quantity - 1 } : item
       )
     );
+  };
+
+  const removeItem = (menuItemId: string) => {
+    setCartItems(items => items.filter(item => item.menuItemId !== menuItemId));
   };
 
   return (
@@ -173,43 +174,53 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
 
             <Text style={styles.itemCountText}>You have {cartItems.length} items in the cart</Text>
 
-            <View style={styles.cartItemsContainer}>
-              {cartItems.map((item) => {
-                const ImageComponent = item.image;
-                return (
-                  <View key={item.id} style={styles.cartItem}>
-                    <View style={styles.itemImageContainer}>
-                      <ImageComponent width={76} height={76} />
-                    </View>
-                    <View style={styles.itemDetails}>
-                      <Text style={styles.itemName}>{item.name}</Text>
-                      <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-                      <View style={styles.quantityRow}>
-                        <View style={styles.quantityControl}>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#1A5D1A" />
+                <Text style={styles.loadingText}>Loading cart...</Text>
+              </View>
+            ) : (
+              <View style={styles.cartItemsContainer}>
+                {cartItems.map((item) => {
+                  const ImageComponent = item.image;
+                  return (
+                    <View key={item.menuItemId} style={styles.cartItem}>
+                      <View style={styles.itemImageContainer}>
+                        <ImageComponent width={76} height={76} />
+                      </View>
+                      <View style={styles.itemDetails}>
+                        <Text style={styles.itemName}>{item.name}</Text>
+                        <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                        <Text style={styles.restaurantName}>{item.restaurantName}</Text>
+                        <View style={styles.quantityRow}>
+                          <View style={styles.quantityControl}>
+                            <Pressable 
+                              style={styles.quantityButton}
+                              onPress={() => decrementQuantity(item.menuItemId)}
+                            >
+                              <Text style={styles.quantityButtonText}>-</Text>
+                            </Pressable>
+                            <Text style={styles.quantityText}>{item.quantity}</Text>
+                            <Pressable 
+                              style={styles.quantityButton}
+                              onPress={() => incrementQuantity(item.menuItemId)}
+                            >
+                              <Text style={styles.quantityButtonText}>+</Text>
+                            </Pressable>
+                          </View>
                           <Pressable 
-                            style={styles.quantityButton}
-                            onPress={() => decrementQuantity(item.id)}
+                            style={styles.removeButton}
+                            onPress={() => removeItem(item.menuItemId)}
                           >
-                            <Text style={styles.quantityButtonText}>-</Text>
-                          </Pressable>
-                          <Text style={styles.quantityText}>{item.quantity}</Text>
-                          <Pressable 
-                            style={styles.quantityButton}
-                            onPress={() => incrementQuantity(item.id)}
-                          >
-                            <Text style={styles.quantityButtonText}>+</Text>
+                            <Text style={styles.removeText}>Remove</Text>
                           </Pressable>
                         </View>
                       </View>
                     </View>
-                    <View style={styles.itemDateTime}>
-                      <Text style={styles.dateText}>{item.date}</Text>
-                      <Text style={styles.timeText2}>{item.time}</Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
+                  );
+                })}
+              </View>
+            )}
 
             <View style={styles.summaryContainer}>
               <View style={styles.summaryRow}>
@@ -435,6 +446,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1A5D1A',
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  restaurantName: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
+  },
+  removeButton: {
+    marginLeft: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 8,
+  },
+  removeText: {
+    fontSize: 12,
+    color: '#F44336',
+    fontWeight: '600',
   },
   bottomIconScrollable: {
     marginTop: 10,

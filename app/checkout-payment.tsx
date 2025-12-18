@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { getCurrentUser } from '../services/auth';
+import { getUserPaymentMethods } from '../services/database';
 
 // SVG icons
 import ApplePaySvg from '../assets/PaymentMethod/icons/applepay.svg';
@@ -49,17 +51,18 @@ export default function CheckoutPaymentScreen() {
 
       // Load selected payment method
       const selectedMethod = await AsyncStorage.getItem('selectedPaymentMethod');
-      if (selectedMethod) {
-        // Check if it's a saved card
-        if (selectedMethod.startsWith('savedcard-')) {
-          const cardId = selectedMethod.replace('savedcard-', '');
-          const savedCards = await AsyncStorage.getItem('savedCards');
-          if (savedCards) {
-            const cards = JSON.parse(savedCards);
-            const selectedCard = cards.find((card: any) => card.id === cardId);
+      const user = getCurrentUser();
+      
+      if (selectedMethod && user) {
+        // Check if it's a saved card from Firestore
+        if (selectedMethod.startsWith('card-')) {
+          const cardId = selectedMethod.replace('card-', '');
+          const result = await getUserPaymentMethods(user.uid);
+          if (result.success && result.data) {
+            const selectedCard = result.data.find((card: any) => card.id === cardId);
             if (selectedCard) {
-              setPaymentMethod(`•••• ${selectedCard.cardNumber.slice(-4)}`);
-              setPaymentMethodName('Credit/Debit Card');
+              setPaymentMethod(`•••• ${selectedCard.cardNumber}`);
+              setPaymentMethodName(`${selectedCard.cardHolderName}'s Card`);
               setPaymentIconType('card');
             }
           }
@@ -86,6 +89,17 @@ export default function CheckoutPaymentScreen() {
               setPaymentMethod('');
               setPaymentIconType('googlepay');
               break;
+          }
+        }
+      } else if (user) {
+        // No payment method selected, load default card from Firestore
+        const result = await getUserPaymentMethods(user.uid);
+        if (result.success && result.data) {
+          const defaultCard = result.data.find((card: any) => card.isDefault);
+          if (defaultCard) {
+            setPaymentMethod(`•••• ${defaultCard.cardNumber}`);
+            setPaymentMethodName(`${defaultCard.cardHolderName}'s Card`);
+            setPaymentIconType('card');
           }
         }
       }

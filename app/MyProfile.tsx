@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import BestsellingSvg from '../assets/HomePage/icons/bestselling.svg';
 import FavouriteSvg from '../assets/HomePage/icons/favourite.svg';
 import HomeSvg from '../assets/HomePage/icons/home.svg';
@@ -9,38 +8,69 @@ import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
 import EditSvg from '../assets/Profile/icons/edit.svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
+import { getCurrentUser } from '../services/auth';
+import { getUserProfile, updateUserProfile } from '../services/database';
 
 export default function MyProfile() {
   const [fullName, setFullName] = useState('');
   const [dob, setDob] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [dateModalVisible, setDateModalVisible] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(1);
+  const [selectedMonth, setSelectedMonth] = useState(1);
+  const [selectedYear, setSelectedYear] = useState(2000);
 
   useEffect(() => {
     const loadProfile = async () => {
-      const savedProfile = await AsyncStorage.getItem('profile');
-      if (savedProfile) {
-        const { fullName, dob, email, phone } = JSON.parse(savedProfile);
-        setFullName(fullName);
-        setDob(dob);
-        setEmail(email);
-        setPhone(phone);
-      } else {
-        setFullName('John Smith');
-        setDob('09 / 10 /1991');
-        setEmail('johnsmith@example.com');
-        setPhone('+123 567 89000');
+      const user = getCurrentUser();
+      if (user) {
+        const result = await getUserProfile(user.uid);
+        if (result.success && result.data) {
+          setFullName(result.data.fullName || '');
+          setDob(result.data.dateOfBirth || '');
+          setEmail(result.data.email || '');
+          setPhone(result.data.mobileNumber || '');
+        }
       }
+      setLoading(false);
     };
     loadProfile();
   }, []);
 
+  const handleDateConfirm = () => {
+    const formattedDate = `${String(selectedDay).padStart(2, '0')} / ${String(selectedMonth).padStart(2, '0')} / ${selectedYear}`;
+    setDob(formattedDate);
+    setDateModalVisible(false);
+  };
+
+  // Generate year options from 1970 to 2050
+  const years = Array.from({ length: 81 }, (_, i) => 1970 + i);
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+
   const handleUpdateProfile = async () => {
-    await AsyncStorage.setItem(
-      'profile',
-      JSON.stringify({ fullName, dob, email, phone })
-    );
-    Alert.alert('Profile Updated', 'Your profile details have been saved.');
+    const user = getCurrentUser();
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to update your profile.');
+      return;
+    }
+
+    setUpdating(true);
+    const result = await updateUserProfile(user.uid, {
+      fullName,
+      dateOfBirth: dob,
+      mobileNumber: phone,
+    });
+    setUpdating(false);
+
+    if (result.success) {
+      Alert.alert('Success', 'Your profile has been updated! ✓');
+    } else {
+      Alert.alert('Error', result.error || 'Failed to update profile.');
+    }
   };
 
   return (
@@ -57,6 +87,12 @@ export default function MyProfile() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#4CAF50" />
+            <Text style={styles.loadingText}>Loading profile...</Text>
+          </View>
+        ) : (
         <View style={styles.contentWrapper}>
         <View style={styles.profileImageWrapper}>
           <Image
@@ -79,13 +115,14 @@ export default function MyProfile() {
         </View>
         <View style={styles.fieldWrapper}>
           <Text style={styles.label}>Date of Birth</Text>
-          <TextInput
+          <Pressable 
             style={styles.inputBox}
-            value={dob}
-            onChangeText={setDob}
-            placeholder="Date of Birth"
-            placeholderTextColor="#888"
-          />
+            onPress={() => setDateModalVisible(true)}
+          >
+            <Text style={[styles.inputText, !dob && styles.placeholderText]}>
+              {dob || "DD / MM / YYYY"}
+            </Text>
+          </Pressable>
         </View>
         <View style={styles.fieldWrapper}>
           <Text style={styles.label}>Email</Text>
@@ -110,10 +147,19 @@ export default function MyProfile() {
             keyboardType="phone-pad"
           />
         </View>
-        <Pressable style={styles.updateButton} onPress={handleUpdateProfile}>
-          <Text style={styles.updateButtonText}>Update Profile</Text>
+        <Pressable 
+          style={[styles.updateButton, updating && styles.updateButtonDisabled]} 
+          onPress={handleUpdateProfile}
+          disabled={updating}
+        >
+          {updating ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.updateButtonText}>Update Profile</Text>
+          )}
         </Pressable>
       </View>
+        )}
       </ScrollView>
       <View style={styles.bottomNavigation}>
         <Pressable style={styles.navIcon}>
@@ -132,6 +178,109 @@ export default function MyProfile() {
           <SupportSvg width={22} height={22} />
         </Pressable>
       </View>
+
+      {/* Date of Birth Modal */}
+      <Modal
+        visible={dateModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDateModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Select Date of Birth</Text>
+            
+            <View style={styles.pickerRow}>
+              {/* Day Picker */}
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>Day</Text>
+                <ScrollView style={styles.picker} showsVerticalScrollIndicator={false}>
+                  {days.map((day) => (
+                    <Pressable
+                      key={day}
+                      style={[
+                        styles.pickerItem,
+                        selectedDay === day && styles.pickerItemSelected
+                      ]}
+                      onPress={() => setSelectedDay(day)}
+                    >
+                      <Text style={[
+                        styles.pickerItemText,
+                        selectedDay === day && styles.pickerItemTextSelected
+                      ]}>
+                        {day}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Month Picker */}
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>Month</Text>
+                <ScrollView style={styles.picker} showsVerticalScrollIndicator={false}>
+                  {months.map((month) => (
+                    <Pressable
+                      key={month}
+                      style={[
+                        styles.pickerItem,
+                        selectedMonth === month && styles.pickerItemSelected
+                      ]}
+                      onPress={() => setSelectedMonth(month)}
+                    >
+                      <Text style={[
+                        styles.pickerItemText,
+                        selectedMonth === month && styles.pickerItemTextSelected
+                      ]}>
+                        {month}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Year Picker */}
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>Year</Text>
+                <ScrollView style={styles.picker} showsVerticalScrollIndicator={false}>
+                  {years.map((year) => (
+                    <Pressable
+                      key={year}
+                      style={[
+                        styles.pickerItem,
+                        selectedYear === year && styles.pickerItemSelected
+                      ]}
+                      onPress={() => setSelectedYear(year)}
+                    >
+                      <Text style={[
+                        styles.pickerItemText,
+                        selectedYear === year && styles.pickerItemTextSelected
+                      ]}>
+                        {year}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setDateModalVisible(false)}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleDateConfirm}
+              >
+                <Text style={styles.modalButtonTextConfirm}>Confirm</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -217,10 +366,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
   },
+  updateButtonDisabled: {
+    backgroundColor: '#A5D6A7',
+  },
   updateButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
   },
   bottomNavigation: {
     position: 'absolute',
@@ -235,4 +398,91 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   navIcon: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  placeholderText: {
+    color: '#888',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A5D1A',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  pickerContainer: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  pickerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1A5D1A',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  picker: {
+    height: 150,
+    backgroundColor: '#F3FFCF',
+    borderRadius: 12,
+  },
+  pickerItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  pickerItemSelected: {
+    backgroundColor: '#C5E1A5',
+  },
+  pickerItemText: {
+    fontSize: 14,
+    color: '#222',
+  },
+  pickerItemTextSelected: {
+    fontWeight: '700',
+    color: '#1A5D1A',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  modalButtonCancel: {
+    backgroundColor: '#E0E0E0',
+  },
+  modalButtonConfirm: {
+    backgroundColor: '#1A5D1A',
+  },
+  modalButtonTextCancel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555',
+  },
+  modalButtonTextConfirm: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
 });
