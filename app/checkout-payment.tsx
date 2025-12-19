@@ -3,7 +3,8 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getCurrentUser } from '../services/auth';
-import { getUserPaymentMethods } from '../services/database';
+import { getCart, getUserPaymentMethods } from '../services/database';
+import type { CartItem } from '../types';
 
 // SVG icons
 import ApplePaySvg from '../assets/PaymentMethod/icons/applepay.svg';
@@ -19,15 +20,8 @@ import HomeSvg from '../assets/HomePage/icons/home.svg';
 import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
 
-interface OrderItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
 export default function CheckoutPaymentScreen() {
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [orderItems, setOrderItems] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState('••• ••• ••• 43');
   const [paymentMethodName, setPaymentMethodName] = useState('Credit/Debit Card');
   const [paymentIconType, setPaymentIconType] = useState<string>('card');
@@ -42,18 +36,23 @@ export default function CheckoutPaymentScreen() {
 
   const loadOrderData = async () => {
     try {
-      // Load cart items
-      const savedCart = await AsyncStorage.getItem('cartItems');
-      if (savedCart) {
-        const items = JSON.parse(savedCart);
-        setOrderItems(items);
+      const user = getCurrentUser();
+      
+      if (!user) {
+        console.error('No user logged in');
+        return;
+      }
+
+      // Load cart items from Firestore
+      const cartResult = await getCart(user.uid);
+      if (cartResult.success && cartResult.data) {
+        setOrderItems(cartResult.data.items);
       }
 
       // Load selected payment method
       const selectedMethod = await AsyncStorage.getItem('selectedPaymentMethod');
-      const user = getCurrentUser();
       
-      if (selectedMethod && user) {
+      if (selectedMethod) {
         // Check if it's a saved card from Firestore
         if (selectedMethod.startsWith('card-')) {
           const cardId = selectedMethod.replace('card-', '');
@@ -91,7 +90,7 @@ export default function CheckoutPaymentScreen() {
               break;
           }
         }
-      } else if (user) {
+      } else {
         // No payment method selected, load default card from Firestore
         const result = await getUserPaymentMethods(user.uid);
         if (result.success && result.data) {
@@ -188,12 +187,37 @@ export default function CheckoutPaymentScreen() {
             </Pressable>
           </View>
           <View style={styles.summaryBox}>
-            {orderItems.map((item, index) => (
-              <View key={item.id} style={styles.summaryItem}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemQuantity}>{item.quantity} items</Text>
+            {orderItems.map((item, index) => {
+              const itemPrice = isPromoApplied ? item.price * 0.5 : item.price;
+              const itemTotal = itemPrice * item.quantity;
+              return (
+                <View key={index} style={styles.summaryItem}>
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemName}>{item.name}</Text>
+                    <Text style={styles.itemQuantity}>x{item.quantity}</Text>
+                  </View>
+                  <Text style={styles.itemPrice}>${itemTotal.toFixed(2)}</Text>
+                </View>
+              );
+            })}
+            <View style={styles.divider} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Subtotal</Text>
+              <Text style={styles.summaryValue}>${subtotal.toFixed(2)}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Tax & Fees</Text>
+              <Text style={styles.summaryValue}>${taxAndFees.toFixed(2)}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Delivery</Text>
+              <Text style={styles.summaryValue}>{delivery === 0 ? 'FREE' : `$${delivery.toFixed(2)}`}</Text>
+            </View>
+            {isPromoApplied && (
+              <View style={styles.promoAppliedBadge}>
+                <Text style={styles.promoAppliedText}>🎉 Promo Applied - 50% Off!</Text>
               </View>
-            ))}
+            )}
             <View style={styles.totalRow}>
               <Text style={styles.totalText}>Total</Text>
               <Text style={styles.totalAmount}>${total.toFixed(2)}</Text>
@@ -326,34 +350,73 @@ const styles = StyleSheet.create({
   summaryItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  itemInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   itemName: {
     fontSize: 14,
-    color: '#666',
-    flex: 1,
+    color: '#333',
+    fontWeight: '500',
   },
   itemQuantity: {
+    fontSize: 12,
+    color: '#999',
+  },
+  itemPrice: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 8,
+  },
+  summaryLabel: {
     fontSize: 14,
     color: '#666',
+  },
+  summaryValue: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  promoAppliedBadge: {
+    backgroundColor: '#E8F5E9',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginVertical: 8,
+    alignItems: 'center',
+  },
+  promoAppliedText: {
+    fontSize: 13,
+    color: '#4CAF50',
+    fontWeight: '600',
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 10,
     paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopWidth: 2,
+    borderTopColor: '#4CAF50',
   },
   totalText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: '#333',
   },
   totalAmount: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: '#4CAF50',
   },
   paymentBox: {
     backgroundColor: '#FFF',

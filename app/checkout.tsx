@@ -1,7 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { getDownloadURL, ref } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { storage } from '../config/firebase';
+import { getCurrentUser } from '../services/auth';
+import { getCart, saveCart } from '../services/database';
+import type { CartItem } from '../types';
 
 // SVG icons
 import DiscountSvg from '../assets/Checkout/icons/discount.svg';
@@ -15,97 +21,91 @@ import HomeSvg from '../assets/HomePage/icons/home.svg';
 import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
 
-// Order images
-import LasagnaSvg from '../assets/CartSideBar/images/lasagna.svg';
-import StrawberryShakeSvg from '../assets/CartSideBar/images/strawberryshake.svg';
-
-interface OrderItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  date: string;
-  image: any;
-}
-
 export default function CheckoutScreen() {
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [orderItems, setOrderItems] = useState<CartItem[]>([]);
+  const [imageURLs, setImageURLs] = useState<{[key: string]: string}>({});
+  const [loading, setLoading] = useState(true);
 
   const [promoCode, setPromoCode] = useState('Promo4377');
   const [isPromoApplied, setIsPromoApplied] = useState(false);
   const [discount, setDiscount] = useState(0);
-  const [cancelledItem, setCancelledItem] = useState<OrderItem | null>(null);
+  const [cancelledItem, setCancelledItem] = useState<CartItem | null>(null);
+
+  const getCategoryColor = (name: string) => {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('vegan')) return '#90EE90';
+    if (lowerName.includes('shake') || lowerName.includes('drink')) return '#87CEEB';
+    if (lowerName.includes('dessert') || lowerName.includes('cake')) return '#FFB6C1';
+    if (lowerName.includes('blind')) return '#FFD700';
+    return '#FF6347';
+  };
+
+  const getInitial = (name: string) => {
+    return name.charAt(0).toUpperCase();
+  };
   const [showUndo, setShowUndo] = useState(false);
 
-  // Load cart items from AsyncStorage when component mounts
   useEffect(() => {
     loadCartItems();
   }, []);
 
-  // Save cart items to AsyncStorage whenever they change
-  useEffect(() => {
-    saveCartItems();
-  }, [orderItems]);
-
-  const loadCartItems = async () => {
+  const getFreshImageURL = async (imageURL: string): Promise<string> => {
+    if (!imageURL || !imageURL.startsWith('http')) return '';
+    
     try {
-      const savedCart = await AsyncStorage.getItem('cartItems');
-      if (savedCart) {
-        const items = JSON.parse(savedCart);
-        // Check if it's not an empty array
-        if (items.length > 0) {
-          // Map the saved items back to include image components
-          const mappedItems = items.map((item: any) => ({
-            ...item,
-            image: item.id === '1' ? StrawberryShakeSvg : LasagnaSvg,
-          }));
-          setOrderItems(mappedItems);
-        } else {
-          // Empty array saved, load defaults
-          loadDefaultItems();
-        }
-      } else {
-        // No saved cart, load defaults
-        loadDefaultItems();
+      const urlObj = new URL(imageURL);
+      const pathMatch = urlObj.pathname.match(/\/o\/(.+?)(\?|$)/);
+      
+      if (pathMatch) {
+        const storagePath = decodeURIComponent(pathMatch[1]);
+        const storageRef = ref(storage, storagePath);
+        const freshURL = await getDownloadURL(storageRef);
+        return freshURL;
       }
     } catch (error) {
-      console.error('Error loading cart items:', error);
-      loadDefaultItems();
+      try {
+        const urlObj = new URL(imageURL);
+        const pathMatch = urlObj.pathname.match(/\/o\/(.+?)(\?|$)/);
+        if (pathMatch) {
+          const storagePath = decodeURIComponent(pathMatch[1]);
+          return `https://firebasestorage.googleapis.com/v0/b/${storage.app.options.storageBucket}/o/${encodeURIComponent(storagePath)}?alt=media`;
+        }
+      } catch {}
     }
+    return imageURL;
   };
 
-  const loadDefaultItems = () => {
-    const defaultItems = [
-      {
-        id: '1',
-        name: 'Strawberry Shake',
-        price: 20.00,
-        quantity: 2,
-        date: '29 Nov, 20:30 pm',
-        image: StrawberryShakeSvg,
-      },
-      {
-        id: '2',
-        name: 'Broccoli Lasagna',
-        price: 12.00,
-        quantity: 1,
-        date: '29 Nov, 20:30 pm',
-        image: LasagnaSvg,
-      },
-    ];
-    setOrderItems(defaultItems);
+  const loadCartItems = async () => {
+    setLoading(true);
+    const user = getCurrentUser();
+    if (user) {
+      const result = await getCart(user.uid);
+      if (result.success && result.data && result.data.items.length > 0) {
+        setOrderItems(result.data.items);
+        
+        // Load fresh image URLs
+        const urls: {[key: string]: string} = {};
+        for (const item of result.data.items) {
+          if (item.imageURL) {
+            urls[item.menuItemId] = await getFreshImageURL(item.imageURL);
+          }
+        }
+        setImageURLs(urls);
+      } else {
+        setOrderItems([]);
+      }
+    }
+    setLoading(false);
   };
 
   const saveCartItems = async () => {
-    try {
-      // Only save if there are items (don't save empty array)
-      if (orderItems.length > 0) {
-        // Save cart items without the image component (can't serialize functions)
-        const itemsToSave = orderItems.map(({ image, ...item }) => item);
-        await AsyncStorage.setItem('cartItems', JSON.stringify(itemsToSave));
-      }
-    } catch (error) {
-      console.error('Error saving cart items:', error);
+    const user = getCurrentUser();
+    if (user && orderItems.length > 0) {
+      const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      await saveCart(user.uid, {
+        items: orderItems,
+        totalAmount: subtotal,
+      });
     }
   };
 
@@ -118,28 +118,53 @@ export default function CheckoutScreen() {
   const delivery = isPromoApplied ? 0.00 : 3.00; // Free delivery with promo
   const total = subtotal + taxAndFees + delivery;
 
-  const incrementQuantity = (id: string) => {
-    setOrderItems(items =>
-      items.map(item =>
-        item.id === id ? { ...item, quantity: item.quantity + 1 } : item
+const incrementQuantity = (menuItemId: string) => {
+    setOrderItems(items => 
+      items.map(item => 
+        item.menuItemId === menuItemId ? { ...item, quantity: item.quantity + 1 } : item
       )
     );
+    saveCartItems();
   };
 
-  const decrementQuantity = (id: string) => {
+  const decrementQuantity = (menuItemId: string) => {
     setOrderItems(items =>
       items.map(item =>
-        item.id === id && item.quantity > 1 ? { ...item, quantity: item.quantity - 1 } : item
+        item.menuItemId === menuItemId && item.quantity > 1 ? { ...item, quantity: item.quantity - 1 } : item
       )
     );
+    saveCartItems();
   };
 
-  const cancelOrder = (id: string) => {
-    const itemToCancel = orderItems.find(item => item.id === id);
+  const cancelOrder = async (menuItemId: string) => {
+    const itemToCancel = orderItems.find(item => item.menuItemId === menuItemId);
     if (itemToCancel) {
+      const updatedItems = orderItems.filter(item => item.menuItemId !== menuItemId);
+      setOrderItems(updatedItems);
       setCancelledItem(itemToCancel);
-      setOrderItems(items => items.filter(item => item.id !== id));
       setShowUndo(true);
+      
+      // Save to Firestore immediately
+      const user = getCurrentUser();
+      if (user && updatedItems.length > 0) {
+        const subtotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        await saveCart(user.uid, {
+          items: updatedItems,
+          totalAmount: subtotal,
+        });
+      } else if (user && updatedItems.length === 0) {
+        // Clear cart if no items left
+        await saveCart(user.uid, {
+          items: [],
+          totalAmount: 0,
+        });
+      }
+      
+      // Auto-hide undo after 5 seconds
+      setTimeout(() => {
+        setShowUndo(false);
+        setCancelledItem(null);
+      }, 5000);
     }
   };
 
@@ -153,6 +178,7 @@ export default function CheckoutScreen() {
       setOrderItems(items => [...items, cancelledItem]);
       setCancelledItem(null);
       setShowUndo(false);
+      saveCartItems();
     }
   };
 
@@ -210,14 +236,26 @@ export default function CheckoutScreen() {
         <Text style={styles.sectionTitle}>Order Summary</Text>
 
         {orderItems.map((item) => {
-          const ItemImage = item.image;
           return (
-          <View key={item.id} style={styles.orderItem}>
-            <ItemImage width={76} height={76} />
+          <View key={item.menuItemId} style={styles.orderItem}>
+            {imageURLs[item.menuItemId] ? (
+              <Image
+                source={{ uri: imageURLs[item.menuItemId] }}
+                style={styles.itemImage}
+                contentFit="cover"
+                transition={200}
+              />
+            ) : (
+              <View style={[styles.itemImage, { backgroundColor: getCategoryColor(item.name), justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ fontSize: 32, fontWeight: '700', color: '#fff' }}>
+                  {getInitial(item.name)}
+                </Text>
+              </View>
+            )}
             <View style={styles.itemDetails}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemDate}>{item.date}</Text>
-              <Pressable onPress={() => cancelOrder(item.id)}>
+              <Text style={styles.itemRestaurant}>{item.restaurantName}</Text>
+              <Pressable onPress={() => cancelOrder(item.menuItemId)}>
                 <Text style={styles.cancelText}>Cancel Order</Text>
               </Pressable>
             </View>
@@ -226,7 +264,7 @@ export default function CheckoutScreen() {
               <View style={styles.quantityControl}>
                 <Pressable 
                   style={styles.quantityButton}
-                  onPress={() => decrementQuantity(item.id)}
+                  onPress={() => decrementQuantity(item.menuItemId)}
                 >
                   <Text style={styles.quantityButtonText}>-</Text>
                 </Pressable>
@@ -235,7 +273,7 @@ export default function CheckoutScreen() {
                 </View>
                 <Pressable 
                   style={styles.quantityButton}
-                  onPress={() => incrementQuantity(item.id)}
+                  onPress={() => incrementQuantity(item.menuItemId)}
                 >
                   <Text style={styles.quantityButtonText}>+</Text>
                 </Pressable>
@@ -443,6 +481,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+    marginBottom: 5,
+  },
+  itemRestaurant: {
+    fontSize: 12,
+    color: '#666',
     marginBottom: 5,
   },
   itemDate: {

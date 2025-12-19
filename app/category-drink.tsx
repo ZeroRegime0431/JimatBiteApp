@@ -198,7 +198,25 @@ export default function CategoryDrinkScreen() {
               </View>
             ) : (
               foodItems.map((item) => (
-                <View key={item.id} style={styles.foodCard}>
+                <Pressable 
+                  key={item.id} 
+                  style={styles.foodCard}
+                  onPress={() => router.push({
+                    pathname: './menu-item-detail',
+                    params: {
+                      id: item.id,
+                      name: item.name,
+                      description: item.description,
+                      price: item.price.toString(),
+                      category: item.category,
+                      imageURL: item.imageURL,
+                      restaurantId: item.restaurantId,
+                      restaurantName: item.restaurantName,
+                      rating: item.rating?.toString() || '0',
+                      isAvailable: item.isAvailable.toString(),
+                    }
+                  })}
+                >
                   <View style={styles.foodImageContainer}>
                     {item.imageURL ? (
                       <Image 
@@ -226,7 +244,7 @@ export default function CategoryDrinkScreen() {
                     <Text style={styles.foodDescription}>{item.description}</Text>
                     <Text style={styles.restaurantName}>{item.restaurantName}</Text>
                   </View>
-                </View>
+                </Pressable>
               ))
             )}
           </View>

@@ -1,6 +1,9 @@
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { getDownloadURL, ref } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { storage } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
 import { getCart, saveCart } from '../services/database';
 import type { CartItem as CartItemType } from '../types';
@@ -10,10 +13,6 @@ import CartSvg from '../assets/CartSideBar/icons/cart.svg';
 import HomeSvg from '../assets/HomePage/icons/home.svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 
-// Product images
-import LasagnaSvg from '../assets/CartSideBar/images/lasagna.svg';
-import StrawberrySvg from '../assets/CartSideBar/images/strawberryshake.svg';
-
 const { width } = Dimensions.get('window');
 
 interface CartSidebarProps {
@@ -21,14 +20,11 @@ interface CartSidebarProps {
   onClose: () => void;
 }
 
-interface CartItemDisplay extends CartItemType {
-  image: React.FC<any>;
-}
-
 export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
-  const [cartItems, setCartItems] = useState<CartItemDisplay[]>([]);
+  const [cartItems, setCartItems] = useState<CartItemType[]>([]);
   const [currentTime, setCurrentTime] = useState('');
   const [loading, setLoading] = useState(true);
+  const [imageURLs, setImageURLs] = useState<{[key: string]: string}>({});
 
   // Update time every second
   useEffect(() => {
@@ -59,61 +55,97 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
     }
   }, [cartItems, loading]);
 
+  const getFreshImageURL = async (imageURL: string): Promise<string> => {
+    if (!imageURL || !imageURL.startsWith('http')) return '';
+    
+    try {
+      const urlObj = new URL(imageURL);
+      const pathMatch = urlObj.pathname.match(/\/o\/(.+?)(\?|$)/);
+      
+      if (pathMatch) {
+        const storagePath = decodeURIComponent(pathMatch[1]);
+        const storageRef = ref(storage, storagePath);
+        const freshURL = await getDownloadURL(storageRef);
+        return freshURL;
+      }
+    } catch (error) {
+      // Return public URL as fallback
+      try {
+        const urlObj = new URL(imageURL);
+        const pathMatch = urlObj.pathname.match(/\/o\/(.+?)(\?|$)/);
+        if (pathMatch) {
+          const storagePath = decodeURIComponent(pathMatch[1]);
+          return `https://firebasestorage.googleapis.com/v0/b/${storage.app.options.storageBucket}/o/${encodeURIComponent(storagePath)}?alt=media`;
+        }
+      } catch {}
+    }
+    return imageURL;
+  };
+
   const loadCartItems = async () => {
     setLoading(true);
     const user = getCurrentUser();
     if (user) {
       const result = await getCart(user.uid);
       if (result.success && result.data && result.data.items.length > 0) {
-        // Map items with image components
-        const mappedItems: CartItemDisplay[] = result.data.items.map((item) => ({
-          ...item,
-          image: item.name.toLowerCase().includes('shake') ? StrawberrySvg : LasagnaSvg,
+        // Clean loaded items to remove any old properties like 'image'
+        const cleanItems = result.data.items.map((item: any) => ({
+          menuItemId: item.menuItemId,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          imageURL: item.imageURL || '',
+          restaurantId: item.restaurantId,
+          restaurantName: item.restaurantName,
         }));
-        setCartItems(mappedItems);
+        setCartItems(cleanItems);
+        
+        // Load fresh image URLs
+        const urls: {[key: string]: string} = {};
+        for (const item of cleanItems) {
+          if (item.imageURL) {
+            urls[item.menuItemId] = await getFreshImageURL(item.imageURL);
+          }
+        }
+        setImageURLs(urls);
       } else {
-        // Load demo items for new users
-        loadDemoItems();
+        setCartItems([]);
       }
     }
     setLoading(false);
   };
 
-  const loadDemoItems = () => {
-    const demoItems: CartItemDisplay[] = [
-      {
-        menuItemId: 'demo-1',
-        name: 'Strawberry Shake',
-        price: 20.00,
-        quantity: 2,
-        imageURL: '',
-        restaurantId: 'demo-restaurant',
-        restaurantName: 'Demo Restaurant',
-        image: StrawberrySvg,
-      },
-      {
-        menuItemId: 'demo-2',
-        name: 'Broccoli Lasagna',
-        price: 12.00,
-        quantity: 1,
-        imageURL: '',
-        restaurantId: 'demo-restaurant',
-        restaurantName: 'Demo Restaurant',
-        image: LasagnaSvg,
-      },
-    ];
-    setCartItems(demoItems);
+  const getCategoryColor = (name: string) => {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('vegan')) return '#90EE90';
+    if (lowerName.includes('shake') || lowerName.includes('drink')) return '#87CEEB';
+    if (lowerName.includes('dessert') || lowerName.includes('cake')) return '#FFB6C1';
+    if (lowerName.includes('blind')) return '#FFD700';
+    return '#FF6347';
+  };
+
+  const getInitial = (name: string) => {
+    return name.charAt(0).toUpperCase();
   };
 
   const saveCartItems = async () => {
     const user = getCurrentUser();
     if (user) {
-      // Save without image components
-      const itemsToSave = cartItems.map(({ image, ...item }) => item);
-      const subtotal = itemsToSave.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      
+      // Clean items to ensure only valid CartItem properties are saved
+      const cleanItems = cartItems.map(item => ({
+        menuItemId: item.menuItemId,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        imageURL: item.imageURL,
+        restaurantId: item.restaurantId,
+        restaurantName: item.restaurantName,
+      }));
       
       await saveCart(user.uid, {
-        items: itemsToSave,
+        items: cleanItems,
         totalAmount: subtotal,
       });
     }
@@ -181,12 +213,21 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
               </View>
             ) : (
               <View style={styles.cartItemsContainer}>
-                {cartItems.map((item) => {
-                  const ImageComponent = item.image;
-                  return (
+                {cartItems.map((item) => (
                     <View key={item.menuItemId} style={styles.cartItem}>
                       <View style={styles.itemImageContainer}>
-                        <ImageComponent width={76} height={76} />
+                        {imageURLs[item.menuItemId] ? (
+                          <Image
+                            source={imageURLs[item.menuItemId]}
+                            style={styles.itemImage}
+                            contentFit="cover"
+                            transition={200}
+                          />
+                        ) : (
+                          <View style={[styles.placeholderImage, { backgroundColor: getCategoryColor(item.name) }]}>
+                            <Text style={styles.placeholderText}>{getInitial(item.name)}</Text>
+                          </View>
+                        )}
                       </View>
                       <View style={styles.itemDetails}>
                         <Text style={styles.itemName}>{item.name}</Text>
@@ -217,8 +258,8 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
                         </View>
                       </View>
                     </View>
-                  );
-                })}
+                  ))
+                }
               </View>
             )}
 
@@ -341,6 +382,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+  },
+  itemImage: {
+    width: '100%',
+    height: '100%',
+  },
+  placeholderImage: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#fff',
   },
   itemDetails: {
     flex: 1,
@@ -468,11 +524,14 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     backgroundColor: '#FFEBEE',
     borderRadius: 8,
+    right: 8,
   },
   removeText: {
     fontSize: 12,
     color: '#F44336',
     fontWeight: '600',
+    right: 0,
+    top: -1,
   },
   bottomIconScrollable: {
     marginTop: 10,
