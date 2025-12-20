@@ -1,24 +1,24 @@
 // Firestore database operations
 import {
-    collection,
-    deleteDoc,
-    doc,
-    getDoc,
-    getDocs,
-    orderBy,
-    query,
-    serverTimestamp,
-    setDoc,
-    updateDoc,
-    where
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type {
-    Cart,
-    MenuItem,
-    Order,
-    PaymentMethod,
-    UserProfile
+  Cart,
+  MenuItem,
+  Order,
+  PaymentMethod,
+  UserProfile
 } from '../types';
 
 // ============= USER PROFILE =============
@@ -53,8 +53,8 @@ export const getUserProfile = async (uid: string): Promise<{ success: boolean; d
         success: true, 
         data: {
           ...data,
-          createdAt: data.createdAt?.toDate(),
-          updatedAt: data.updatedAt?.toDate(),
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (typeof data.createdAt === 'string' ? new Date(data.createdAt) : data.createdAt),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : (typeof data.updatedAt === 'string' ? new Date(data.updatedAt) : data.updatedAt),
         } as UserProfile 
       };
     } else {
