@@ -1,49 +1,39 @@
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import BestsellingSvg from '../assets/HomePage/icons/bestselling.svg';
 import FavouriteSvg from '../assets/HomePage/icons/favourite.svg';
 import HomeSvg from '../assets/HomePage/icons/home.svg';
 import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
-import FruitTeaSvg from '../assets/OrderImages/fruittea.svg';
-import SushiSvg from '../assets/OrderImages/sushi.svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
-
-interface Order {
-  id: string;
-  name: string;
-  price: number;
-  date: string;
-  time: string;
-  itemCount: number;
-  image: any;
-  status: string;
-}
+import { getCurrentUser } from '../services/auth';
+import { getUserOrders } from '../services/database';
+import type { Order } from '../types';
 
 export default function MyOrdersCancelledScreen() {
-  const [orders] = useState<Order[]>([
-    {
-      id: '1',
-      name: 'Sushi Wave',
-      price: 103.0,
-      date: '02 Nov',
-      time: '02:45 pm',
-      itemCount: 2,
-      image: SushiSvg,
-      status: 'Cancelled',
-    },
-    {
-      id: '2',
-      name: 'Fruit and Berry Tea',
-      price: 15.0,
-      date: '12 Oct',
-      time: '06:30 pm',
-      itemCount: 1,
-      image: FruitTeaSvg,
-      status: 'Cancelled',
-    },
-  ]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadCancelledOrders();
+  }, []);
+
+  const loadCancelledOrders = async () => {
+    setLoading(true);
+    const user = getCurrentUser();
+    if (user) {
+      const result = await getUserOrders(user.uid);
+      if (result.success && result.data) {
+        // Filter only cancelled orders
+        const cancelledOrders = result.data.filter(
+          order => order.status === 'cancelled'
+        );
+        setOrders(cancelledOrders);
+      }
+    }
+    setLoading(false);
+  };
 
   const handleTabChange = (tab: 'active' | 'completed') => {
     if (tab === 'active') router.push('./myorders-active');
@@ -77,31 +67,47 @@ export default function MyOrdersCancelledScreen() {
           </View>
 
           <View style={styles.ordersContainer}>
-            {orders.map(order => (
-              <View key={order.id} style={styles.orderCard}>
-                <View style={styles.orderImage}>
-                  <order.image width={80} height={80} />
-                </View>
-                <View style={styles.orderDetails}>
-                  <Text style={styles.orderName}>{order.name}</Text>
-                  <Text style={styles.orderDateTime}>{order.date}, {order.time}</Text>
-                  <Text style={styles.itemCount}>{order.itemCount} items</Text>
-                  <View style={styles.orderActions}>
-                    <View style={styles.cancelledButton}>
-                      <Text style={styles.cancelledButtonText}>{order.status}</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.orderRightSection}>
-                  <Text style={styles.orderPrice}>${order.price.toFixed(2)}</Text>
-                </View>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#1A5D1A" />
+                <Text style={styles.loadingText}>Loading orders...</Text>
               </View>
-            ))}
-
-            {orders.length === 0 && (
+            ) : orders.length === 0 ? (
               <View style={styles.emptyStateContainer}>
                 <Text style={styles.emptyStateText}>No cancelled orders</Text>
               </View>
+            ) : (
+              orders.map(order => (
+                <Pressable 
+                  key={order.id} 
+                  style={styles.orderCard}
+                  onPress={() => router.push({
+                    pathname: './order-details',
+                    params: { orderId: order.id }
+                  })}
+                >
+                  <View style={styles.orderImage}>
+                    <View style={styles.placeholderImage}>
+                      <Text style={styles.placeholderText}>{order.restaurantName.charAt(0)}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.orderDetails}>
+                    <Text style={styles.orderName}>{order.items[0]?.name}{order.items.length > 1 ? ` +${order.items.length - 1} more` : ''}</Text>
+                    <Text style={styles.orderDateTime}>
+                      {order.orderDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}, {order.orderDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                    <Text style={styles.itemCount}>{order.items.reduce((sum, item) => sum + item.quantity, 0)} items</Text>
+                    <View style={styles.orderActions}>
+                      <View style={styles.cancelledButton}>
+                        <Text style={styles.cancelledButtonText}>Cancelled</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.orderRightSection}>
+                    <Text style={styles.orderPrice}>${order.grandTotal.toFixed(2)}</Text>
+                  </View>
+                </Pressable>
+              ))
             )}
           </View>
         </ScrollView>
@@ -210,6 +216,21 @@ const styles = StyleSheet.create({
   orderPrice: { fontSize: 16, fontWeight: '700', color: '#1A5D1A' },
   emptyStateContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
   emptyStateText: { fontSize: 16, color: '#9CA3AF' },
+  loadingContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
+  loadingText: { fontSize: 14, color: '#6B7280', marginTop: 12 },
+  placeholderImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#D32F2F',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#fff',
+  },
   bottomNavigation: { 
     position: 'absolute', 
     bottom: 18, 

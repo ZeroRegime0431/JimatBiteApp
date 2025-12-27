@@ -11,17 +11,26 @@ export default function PopulateMenuScreen() {
   const [loading, setLoading] = useState(false);
   const [log, setLog] = useState<string[]>(['Ready to populate menu items...']);
   const [imageUrls, setImageUrls] = useState({
-    mojito: '',
-    coffee: '',
-    strawberryshake: '',
-    meetarik: '',
-    hotpot: '',
-    brownie: '',
-    macaron: '',
-    risotto: '',
-    lasagna: '',
-    goodbakery: '',
-    urbankoreanfry: '',
+    icedlemontea: '',
+    coldbrewcoffee: '',
+    orangejuice: '',
+    chickenrice: '',
+    beefburger: '',
+    spaghettibolognese: '',
+    friednoodles: '',
+    chocolatebrownie: '',
+    cheesecake: '',
+    vanillacupcake: '',
+    redvelvetcake: '',
+    chocchipcookie: '',
+    veganbuddhabowl: '',
+    veganwrap: '',
+    tofustirfry: '',
+    quinoasalad: '',
+    jimatbiteblindbox: '',
+    bakeryblindbox: '',
+    cafeblindbox: '',
+    veganblindbox: '',
   });
 
   const addLog = (message: string) => {
@@ -29,126 +38,236 @@ export default function PopulateMenuScreen() {
   };
 
   const menuItemsData = [
+
+
+
     {
-      id: 'drink-001',
-      name: 'Mojito',
-      description: 'Made with white rum, fresh mint leaves, and lime for a crisp.',
-      price: 15.00,
+      id: 'drink-004',
+      name: 'Iced Lemon Tea',
+      description: 'Refreshing iced lemon tea with a hint of mint',
+      price: 3.5,
       category: 'drink',
-      rating: 4.8,
-      restaurantId: 'rest-001',
-      restaurantName: 'Tropical Bar',
-      imageKey: 'mojito',
+      rating: 4.3,
+      restaurantId: 'rest-012',
+      restaurantName: 'Cool Sips Cafe',
+      imageKey: 'icedlemontea',
     },
     {
-      id: 'drink-002',
-      name: 'Iced Coffee',
-      description: 'Espresso, ice milk, and a touch of sweetness - perfect to keep you awake.',
-      price: 12.99,
+      id: 'drink-005',
+      name: 'Cold Brew Coffee',
+      description: 'Smooth cold brew coffee served without sugar',
+      price: 4.8,
       category: 'drink',
-      rating: 4.8,
-      restaurantId: 'rest-002',
-      restaurantName: 'Coffee Corner',
-      imageKey: 'coffee',
+      rating: 4.6,
+      restaurantId: 'rest-015',
+      restaurantName: 'Daily Grind',
+      imageKey: 'coldbrewcoffee',
     },
     {
-      id: 'drink-003',
-      name: 'Strawberry Shake',
-      description: 'Creamy strawberry shake blended with fresh strawberries and vanilla ice cream.',
-      price: 20.00,
+      id: 'drink-006',
+      name: 'Fresh Orange Juice',
+      description: 'Freshly squeezed orange juice served chilled',
+      price: 4,
       category: 'drink',
-      rating: 4.9,
-      restaurantId: 'rest-003',
-      restaurantName: 'Shake Palace',
-      imageKey: 'strawberryshake',
+      rating: 4.4,
+      restaurantId: 'rest-018',
+      restaurantName: 'Juice Junction',
+      imageKey: 'orangejuice',
     },
+
+
     {
-      id: 'meal-001',
-      name: 'Mee Tarik Set',
-      description: 'Lengthy Ramen, tofu+Meat ball or Mini Cucumber+Hot Roll+Kimchi choose two',
-      price: 2.96,
+      id: 'meal-003',
+      name: 'Chicken Rice Box',
+      description: 'Steamed chicken served with fragrant rice and chili sauce',
+      price: 7.5,
       category: 'meal',
-      rating: 4.8,
-      restaurantId: 'rest-004',
-      restaurantName: 'Asian Noodle House',
-      imageKey: 'meetarik',
+      rating: 4.6,
+      restaurantId: 'rest-009',
+      restaurantName: 'Uncle Lim Kitchen',
+      imageKey: 'chickenrice',
     },
     {
-      id: 'meal-002',
-      name: 'Spicy HotPot Set',
-      description: 'Mix and match the package, select 5 out of the 10 options',
-      price: 2.96,
+      id: 'meal-004',
+      name: 'Beef Burger',
+      description: 'Juicy beef patty with lettuce, cheese and house sauce',
+      price: 9.9,
       category: 'meal',
-      rating: 4.9,
-      restaurantId: 'rest-004',
-      restaurantName: 'Asian Noodle House',
-      imageKey: 'hotpot',
+      rating: 4.4,
+      restaurantId: 'rest-010',
+      restaurantName: 'Burger Bros',
+      imageKey: 'beefburger',
     },
     {
-      id: 'dessert-001',
+      id: 'meal-005',
+      name: 'Spaghetti Bolognese',
+      description: 'Classic spaghetti with slow-cooked beef bolognese sauce',
+      price: 10.5,
+      category: 'meal',
+      rating: 4.5,
+      restaurantId: 'rest-014',
+      restaurantName: 'Pasta Corner',
+      imageKey: 'spaghettibolognese',
+    },
+    {
+      id: 'meal-006',
+      name: 'Fried Noodles',
+      description: 'Wok-fried noodles with vegetables and soy sauce',
+      price: 6.8,
+      category: 'meal',
+      rating: 4.2,
+      restaurantId: 'rest-009',
+      restaurantName: 'Uncle Lim Kitchen',
+      imageKey: 'friednoodles',
+    },
+
+
+    {
+      id: 'dessert-003',
       name: 'Chocolate Brownie',
-      description: 'Crispy on the outside and tender on the inside, this chocolate brownie is a bestseller.',
-      price: 13.00,
+      description: 'Rich and fudgy chocolate brownie with walnuts',
+      price: 5.0,
       category: 'dessert',
       rating: 4.8,
-      restaurantId: 'rest-005',
-      restaurantName: 'Sweet Paradise',
-      imageKey: 'brownie',
+      restaurantId: 'rest-011',
+      restaurantName: 'Sweet Treats Bakery',
+      imageKey: 'chocolatebrownie',
     },
     {
-      id: 'dessert-002',
-      name: 'Macarons',
-      description: 'Try variety of delicious French Macaroons with many different flavors.',
-      price: 12.99,
+      id: 'dessert-004',
+      name: 'Cheesecake Slice',
+      description: 'Creamy New York style cheesecake with berry topping',
+      price: 6.5,
       category: 'dessert',
-      rating: 4.8,
-      restaurantId: 'rest-005',
-      restaurantName: 'Sweet Paradise',
-      imageKey: 'macaron',
-    },
-    {
-      id: 'vegan-001',
-      name: 'Mushroom Risotto',
-      description: 'Juicy mushrooms and chewy risotto. Try this delightful option.',
-      price: 15.00,
-      category: 'vegan',
-      rating: 4.8,
-      restaurantId: 'rest-006',
-      restaurantName: 'Green Leaf Bistro',
-      imageKey: 'risotto',
-    },
-    {
-      id: 'vegan-002',
-      name: 'Broccoli Lasagna',
-      description: 'Our secret cheesecake recipe makes this incredibly smooth, tender broccoli, rich vegan cheese.',
-      price: 12.00,
-      category: 'vegan',
-      rating: 4.8,
-      restaurantId: 'rest-006',
-      restaurantName: 'Green Leaf Bistro',
-      imageKey: 'lasagna',
-    },
-    {
-      id: 'blindbox-001',
-      name: 'Good Ground Bakery',
-      description: 'Blind Box Only (After 20:00) - The remaining fresh bread of the day.',
-      price: 10.00,
-      category: 'blindbox',
-      rating: 4.8,
-      restaurantId: 'rest-007',
-      restaurantName: 'Good Ground Bakery',
-      imageKey: 'goodbakery',
-    },
-    {
-      id: 'blindbox-002',
-      name: 'K Fry Urban Korean',
-      description: 'Fresh fried chicken every day. The remaining fried chicken will be made into blind box!',
-      price: 10.99,
-      category: 'blindbox',
       rating: 4.9,
-      restaurantId: 'rest-008',
-      restaurantName: 'K Fry Urban Korean',
-      imageKey: 'urbankoreanfry',
+      restaurantId: 'rest-011',
+      restaurantName: 'Sweet Treats Bakery',
+      imageKey: 'cheesecake',
+    },
+    {
+      id: 'dessert-005',
+      name: 'Vanilla Cupcake',
+      description: 'Fluffy vanilla cupcake with buttercream frosting',
+      price: 4.2,
+      category: 'dessert',
+      rating: 4.3,
+      restaurantId: 'rest-017',
+      restaurantName: 'Daily Oven',
+      imageKey: 'vanillacupcake',
+    },
+    {
+      id: 'dessert-006',
+      name: 'Red Velvet Cake',
+      description: 'Moist red velvet cake with cream cheese frosting',
+      price: 6.8,
+      category: 'dessert',
+      rating: 4.7,
+      restaurantId: 'rest-011',
+      restaurantName: 'Sweet Treats Bakery',
+      imageKey: 'redvelvetcake',
+    },
+    {
+      id: 'dessert-007',
+      name: 'Chocolate Chip Cookie',
+      description: 'Freshly baked chocolate chip cookie, warm and gooey',
+      price: 3.5,
+      category: 'dessert',
+      rating: 4.4,
+      restaurantId: 'rest-017',
+      restaurantName: 'Daily Oven',
+      imageKey: 'chocchipcookie',
+    },
+
+
+    {
+      id: 'vegan-003',
+      name: 'Vegan Buddha Bowl',
+      description: 'Nutritious bowl with quinoa, chickpeas, and roasted vegetables',
+      price: 8.9,
+      category: 'vegan',
+      rating: 4.7,
+      restaurantId: 'rest-013',
+      restaurantName: 'Green Plate',
+      imageKey: 'veganbuddhabowl',
+    },
+    {
+      id: 'vegan-004',
+      name: 'Vegan Wrap',
+      description: 'Whole wheat wrap filled with hummus and fresh veggies',
+      price: 7.2,
+      category: 'vegan',
+      rating: 4.5,
+      restaurantId: 'rest-013',
+      restaurantName: 'Green Plate',
+      imageKey: 'veganwrap',
+    },
+    {
+      id: 'vegan-005',
+      name: 'Tofu Stir Fry',
+      description: 'Crispy tofu with mixed vegetables in savory sauce',
+      price: 8.0,
+      category: 'vegan',
+      rating: 4.6,
+      restaurantId: 'rest-019',
+      restaurantName: 'Herbivore Hub',
+      imageKey: 'tofustirfry',
+    },
+    {
+      id: 'vegan-006',
+      name: 'Quinoa Salad',
+      description: 'Fresh quinoa salad with pomegranate and mint dressing',
+      price: 7.8,
+      category: 'vegan',
+      rating: 4.4,
+      restaurantId: 'rest-019',
+      restaurantName: 'Herbivore Hub',
+      imageKey: 'quinoasalad',
+    },
+
+
+    {
+      id: 'blindbox-003',
+      name: 'JimatBite Surprise Box',
+      description: 'Mystery box with assorted items from partner restaurants',
+      price: 5.0,
+      category: 'blindbox',
+      rating: 4.5,
+      restaurantId: 'rest-016',
+      restaurantName: 'JimatBite Partner Store',
+      imageKey: 'jimatbiteblindbox',
+    },
+    {
+      id: 'blindbox-004',
+      name: 'Bakery Blind Box',
+      description: 'Surprise selection of fresh bakery items',
+      price: 4.5,
+      category: 'blindbox',
+      rating: 4.6,
+      restaurantId: 'rest-011',
+      restaurantName: 'Sweet Treats Bakery',
+      imageKey: 'bakeryblindbox',
+    },
+    {
+      id: 'blindbox-005',
+      name: 'Cafe Blind Box',
+      description: 'Random beverage and pastry combo from our cafe',
+      price: 4.0,
+      category: 'blindbox',
+      rating: 4.3,
+      restaurantId: 'rest-012',
+      restaurantName: 'Cool Sips Cafe',
+      imageKey: 'cafeblindbox',
+    },
+    {
+      id: 'blindbox-006',
+      name: 'Vegan Blind Box',
+      description: 'Healthy plant-based meal surprise box',
+      price: 5.5,
+      category: 'blindbox',
+      rating: 4.7,
+      restaurantId: 'rest-013',
+      restaurantName: 'Green Plate',
+      imageKey: 'veganblindbox',
     },
   ];
 
@@ -222,7 +341,7 @@ export default function PopulateMenuScreen() {
 
         {/* Drinks Section */}
         <Text style={styles.sectionTitle}>🍹 Drinks</Text>
-        {['mojito', 'coffee', 'strawberryshake'].map((key) => {
+        {['icedlemontea', 'coldbrewcoffee', 'orangejuice'].map((key) => {
           const item = menuItemsData.find(item => item.imageKey === key);
           return (
             <View key={key} style={styles.inputGroup}>
@@ -243,7 +362,7 @@ export default function PopulateMenuScreen() {
 
         {/* Meals Section */}
         <Text style={styles.sectionTitle}>🍜 Meals</Text>
-        {['meetarik', 'hotpot'].map((key) => {
+        {['chickenrice', 'beefburger', 'spaghettibolognese', 'friednoodles'].map((key) => {
           const item = menuItemsData.find(item => item.imageKey === key);
           return (
             <View key={key} style={styles.inputGroup}>
@@ -264,7 +383,7 @@ export default function PopulateMenuScreen() {
 
         {/* Desserts Section */}
         <Text style={styles.sectionTitle}>🍰 Desserts</Text>
-        {['brownie', 'macaron'].map((key) => {
+        {['chocolatebrownie', 'cheesecake', 'vanillacupcake', 'redvelvetcake', 'chocchipcookie'].map((key) => {
           const item = menuItemsData.find(item => item.imageKey === key);
           return (
             <View key={key} style={styles.inputGroup}>
@@ -285,7 +404,7 @@ export default function PopulateMenuScreen() {
 
         {/* Vegan Section */}
         <Text style={styles.sectionTitle}>🥗 Vegan</Text>
-        {['risotto', 'lasagna'].map((key) => {
+        {['veganbuddhabowl', 'veganwrap', 'tofustirfry', 'quinoasalad'].map((key) => {
           const item = menuItemsData.find(item => item.imageKey === key);
           return (
             <View key={key} style={styles.inputGroup}>
@@ -306,7 +425,7 @@ export default function PopulateMenuScreen() {
 
         {/* Blind Box Section */}
         <Text style={styles.sectionTitle}>📦 Blind Box</Text>
-        {['goodbakery', 'urbankoreanfry'].map((key) => {
+        {['jimatbiteblindbox', 'bakeryblindbox', 'cafeblindbox', 'veganblindbox'].map((key) => {
           const item = menuItemsData.find(item => item.imageKey === key);
           return (
             <View key={key} style={styles.inputGroup}>

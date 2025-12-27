@@ -3,7 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getCurrentUser } from '../services/auth';
-import { getCart, getUserPaymentMethods } from '../services/database';
+import { createOrder, getCart, getUserPaymentMethods, saveCart } from '../services/database';
 import type { CartItem } from '../types';
 
 // SVG icons
@@ -139,9 +139,66 @@ export default function CheckoutPaymentScreen() {
     }
   };
 
-  const handlePayNow = () => {
-    console.log('Processing payment...');
-    router.push('./checkout-confirmation');
+  const handlePayNow = async () => {
+    try {
+      console.log('Processing payment...');
+      const user = getCurrentUser();
+      
+      if (!user) {
+        console.error('No user logged in');
+        return;
+      }
+
+      if (orderItems.length === 0) {
+        console.error('No items in order');
+        return;
+      }
+
+      // Create order in Firestore
+      const orderResult = await createOrder({
+        userId: user.uid,
+        items: orderItems,
+        totalAmount: subtotal,
+        deliveryFee: delivery,
+        tax: taxAndFees,
+        grandTotal: total,
+        status: 'pending',
+        deliveryAddress: {
+          id: 'default',
+          label: 'Home',
+          street: pickupAddress,
+          city: 'Kuala Lumpur',
+          state: 'Federal Territory',
+          postalCode: '53300',
+          country: 'Malaysia',
+          isDefault: true,
+        },
+        paymentMethod: paymentMethodName,
+        orderDate: new Date(),
+        restaurantId: orderItems[0].restaurantId,
+        restaurantName: orderItems[0].restaurantName,
+      });
+
+      if (orderResult.success) {
+        console.log('Order created successfully:', orderResult.orderId);
+        
+        // Clear the cart after successful order
+        await saveCart(user.uid, {
+          items: [],
+          totalAmount: 0,
+        });
+        
+        // Clear promo state
+        await AsyncStorage.removeItem('promoApplied');
+        
+        // Navigate to confirmation
+        router.push('./checkout-confirmation');
+      } else {
+        console.error('Failed to create order:', orderResult.error);
+      }
+    } catch (error) {
+      console.error('Error processing payment:', error);
+    }
   };
 
   const subtotal = calculateSubtotal();

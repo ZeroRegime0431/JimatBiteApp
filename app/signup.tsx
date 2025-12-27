@@ -33,6 +33,29 @@ export default function SignupScreen() {
   const [selectedDay, setSelectedDay] = useState(1);
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [selectedYear, setSelectedYear] = useState(2000);
+  const [countryModalVisible, setCountryModalVisible] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState({ code: '+60', name: 'Malaysia', maxLength: 10 });
+
+  // Country codes with max phone number lengths
+  const countryCodes = [
+    { code: '+60', name: 'Malaysia', maxLength: 10 },
+    { code: '+65', name: 'Singapore', maxLength: 8 },
+    { code: '+1', name: 'USA/Canada', maxLength: 10 },
+    { code: '+44', name: 'United Kingdom', maxLength: 10 },
+    { code: '+61', name: 'Australia', maxLength: 9 },
+    { code: '+86', name: 'China', maxLength: 11 },
+    { code: '+91', name: 'India', maxLength: 10 },
+    { code: '+81', name: 'Japan', maxLength: 10 },
+    { code: '+82', name: 'South Korea', maxLength: 10 },
+    { code: '+62', name: 'Indonesia', maxLength: 11 },
+    { code: '+66', name: 'Thailand', maxLength: 9 },
+    { code: '+63', name: 'Philippines', maxLength: 10 },
+    { code: '+84', name: 'Vietnam', maxLength: 10 },
+    { code: '+49', name: 'Germany', maxLength: 11 },
+    { code: '+33', name: 'France', maxLength: 9 },
+    { code: '+971', name: 'UAE', maxLength: 9 },
+    { code: '+966', name: 'Saudi Arabia', maxLength: 9 },
+  ];
 
   const handleBack = () => {
     router.back();
@@ -45,8 +68,29 @@ export default function SignupScreen() {
       return;
     }
 
+    // Password policy validation
     if (password.length < 6) {
       setError("Password must be at least 6 characters long ❌");
+      return;
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      setError("Password must contain at least one uppercase character ❌");
+      return;
+    }
+
+    if (!/[a-z]/.test(password)) {
+      setError("Password must contain at least one lowercase character ❌");
+      return;
+    }
+
+    if (!/[0-9]/.test(password)) {
+      setError("Password must contain at least one numeric character ❌");
+      return;
+    }
+
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      setError("Password must contain at least one special character ❌");
       return;
     }
 
@@ -91,6 +135,23 @@ export default function SignupScreen() {
     const formattedDate = `${String(selectedDay).padStart(2, '0')} / ${String(selectedMonth).padStart(2, '0')} / ${selectedYear}`;
     setDateOfBirth(formattedDate);
     setDateModalVisible(false);
+  };
+
+  const handleCountrySelect = (country: typeof countryCodes[0]) => {
+    setSelectedCountry(country);
+    setCountryModalVisible(false);
+    // Clear mobile number if it exceeds new country's max length
+    if (mobileNumber.length > country.maxLength) {
+      setMobileNumber('');
+    }
+  };
+
+  const handleMobileNumberChange = (text: string) => {
+    // Only allow digits and limit to country's max length
+    const digitsOnly = text.replace(/[^0-9]/g, '');
+    if (digitsOnly.length <= selectedCountry.maxLength) {
+      setMobileNumber(digitsOnly);
+    }
   };
 
   // Generate year options from 1970 to 2050
@@ -150,16 +211,37 @@ export default function SignupScreen() {
               </Text>
             </Pressable>
           </View>
+          <Text style={styles.passwordRequirements}>
+            Password must contain:
+            {"\n"}• At least 6 characters
+            {"\n"}• One uppercase letter (A-Z)
+            {"\n"}• One lowercase letter (a-z)
+            {"\n"}• One number (0-9)
+            {"\n"}• One special character (!@#$%^&*)
+          </Text>
 
           <Text style={styles.label}>Mobile Number</Text>
-          <TextInput
-            placeholder="+ 123 456 789"
-            style={styles.input}
-            placeholderTextColor="#9e8852"
-            keyboardType="phone-pad"
-            value={mobileNumber}
-            onChangeText={setMobileNumber}
-          />
+          <View style={styles.phoneInputContainer}>
+            <Pressable 
+              style={styles.countryCodeButton}
+              onPress={() => setCountryModalVisible(true)}
+            >
+              <Text style={styles.countryCodeText}>{selectedCountry.code}</Text>
+              <Text style={styles.dropdownArrow}>▼</Text>
+            </Pressable>
+            <TextInput
+              placeholder={`Enter ${selectedCountry.maxLength} digits`}
+              style={styles.phoneInput}
+              placeholderTextColor="#9e8852"
+              keyboardType="phone-pad"
+              value={mobileNumber}
+              onChangeText={handleMobileNumberChange}
+              maxLength={selectedCountry.maxLength}
+            />
+          </View>
+          <Text style={styles.phoneHint}>
+            {selectedCountry.name}: Max {selectedCountry.maxLength} digits
+          </Text>
 
           <Text style={styles.label}>Date of birth</Text>
           <Pressable 
@@ -326,6 +408,46 @@ export default function SignupScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Country Code Modal */}
+      <Modal
+        visible={countryModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setCountryModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Select Country Code</Text>
+            
+            <ScrollView style={styles.countryList} showsVerticalScrollIndicator={false}>
+              {countryCodes.map((country) => (
+                <Pressable
+                  key={country.code + country.name}
+                  style={[
+                    styles.countryItem,
+                    selectedCountry.code === country.code && styles.countryItemSelected
+                  ]}
+                  onPress={() => handleCountrySelect(country)}
+                >
+                  <Text style={styles.countryCodeInList}>{country.code}</Text>
+                  <Text style={styles.countryName}>{country.name}</Text>
+                  {selectedCountry.code === country.code && (
+                    <Text style={styles.checkmark}>✓</Text>
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            <Pressable
+              style={[styles.modalButton, styles.modalButtonCancel]}
+              onPress={() => setCountryModalVisible(false)}
+            >
+              <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -359,6 +481,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     color: "#245B2A",
+    top: -30,
   },
   body: {
     flex: 1,
@@ -367,6 +490,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 32,
     paddingHorizontal: 24,
     paddingTop: 24,
+    marginTop: -44,
   },
   bodyContent: {
     paddingBottom: 24,
@@ -491,6 +615,83 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: "#9e8852",
+  },
+  passwordRequirements: {
+    fontSize: 11,
+    color: "#666",
+    marginTop: 6,
+    marginBottom: 12,
+    lineHeight: 16,
+  },
+  phoneInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  countryCodeButton: {
+    backgroundColor: "#FFECA9",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    minWidth: 85,
+  },
+  countryCodeText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#245B2A",
+  },
+  dropdownArrow: {
+    fontSize: 10,
+    color: "#245B2A",
+  },
+  phoneInput: {
+    flex: 1,
+    backgroundColor: "#FFECA9",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    fontSize: 14,
+    color: "#245B2A",
+  },
+  phoneHint: {
+    fontSize: 11,
+    color: "#888",
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  countryList: {
+    maxHeight: 400,
+    marginBottom: 20,
+  },
+  countryItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: "#FFECA9",
+  },
+  countryItemSelected: {
+    backgroundColor: "#FFF952",
+  },
+  countryCodeInList: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#245B2A",
+    minWidth: 50,
+  },
+  countryName: {
+    fontSize: 14,
+    color: "#245B2A",
+    flex: 1,
+  },
+  checkmark: {
+    fontSize: 18,
+    color: "#245B2A",
+    fontWeight: "700",
   },
   modalOverlay: {
     flex: 1,

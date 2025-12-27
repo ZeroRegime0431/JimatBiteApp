@@ -30,6 +30,7 @@ export default function CheckoutScreen() {
   const [isPromoApplied, setIsPromoApplied] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [cancelledItem, setCancelledItem] = useState<CartItem | null>(null);
+  const [error, setError] = useState('');
 
   const getCategoryColor = (name: string) => {
     const lowerName = name.toLowerCase();
@@ -110,12 +111,12 @@ export default function CheckoutScreen() {
   };
 
   // Calculate prices with promo discount (halves item prices)
-  const subtotal = orderItems.reduce((sum, item) => {
+  const subtotal = orderItems.length > 0 ? orderItems.reduce((sum, item) => {
     const itemPrice = isPromoApplied ? item.price * 0.5 : item.price;
     return sum + (itemPrice * item.quantity);
-  }, 0);
-  const taxAndFees = 5.00;
-  const delivery = isPromoApplied ? 0.00 : 3.00; // Free delivery with promo
+  }, 0) : 0;
+  const taxAndFees = orderItems.length > 0 ? 5.00 : 0;
+  const delivery = orderItems.length > 0 ? (isPromoApplied ? 0.00 : 3.00) : 0; // Free delivery with promo
   const total = subtotal + taxAndFees + delivery;
 
 const incrementQuantity = (menuItemId: string) => {
@@ -194,6 +195,13 @@ const incrementQuantity = (menuItemId: string) => {
   };
 
   const placeOrder = async () => {
+    // Validate cart is not empty
+    if (orderItems.length === 0) {
+      setError('No items chosen');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    
     try {
       // Save promo state for payment screen
       await AsyncStorage.setItem('promoApplied', JSON.stringify(isPromoApplied));
@@ -235,7 +243,12 @@ const incrementQuantity = (menuItemId: string) => {
         {/* Order Summary */}
         <Text style={styles.sectionTitle}>Order Summary</Text>
 
-        {orderItems.map((item) => {
+        {orderItems.length === 0 ? (
+          <View style={styles.emptyCartContainer}>
+            <Text style={styles.emptyCartText}>You have no items in the cart</Text>
+          </View>
+        ) : (
+          orderItems.map((item) => {
           return (
           <View key={item.menuItemId} style={styles.orderItem}>
             {imageURLs[item.menuItemId] ? (
@@ -281,7 +294,8 @@ const incrementQuantity = (menuItemId: string) => {
             </View>
           </View>
           );
-        })}
+        })
+        )}
 
         {/* Line Separator */}
         <View style={styles.lineSeparator}>
@@ -346,6 +360,13 @@ const incrementQuantity = (menuItemId: string) => {
             <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
           </View>
         </View>
+
+        {/* Error message */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
 
         {/* Place Order Button */}
         <Pressable style={styles.placeOrderButton} onPress={placeOrder}>
@@ -707,5 +728,33 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     elevation: 4,
     bottom: -10,
+  },
+  emptyCartContainer: {
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyCartText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  errorContainer: {
+    backgroundColor: '#FFEBEE',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#D32F2F',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#D32F2F',
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

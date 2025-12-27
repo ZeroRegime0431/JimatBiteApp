@@ -50,7 +50,7 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
 
   // Save cart items whenever they change
   useEffect(() => {
-    if (!loading && cartItems.length > 0) {
+    if (!loading) {
       saveCartItems();
     }
   }, [cartItems, loading]);
@@ -151,9 +151,9 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
     }
   };
 
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const taxAndFees = 5.00;
-  const delivery = 3.00;
+  const subtotal = cartItems.length > 0 ? cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) : 0;
+  const taxAndFees = cartItems.length > 0 ? 5.00 : 0;
+  const delivery = cartItems.length > 0 ? 3.00 : 0;
   const total = subtotal + taxAndFees + delivery;
 
   const incrementQuantity = (menuItemId: string) => {
@@ -172,8 +172,19 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
     );
   };
 
-  const removeItem = (menuItemId: string) => {
-    setCartItems(items => items.filter(item => item.menuItemId !== menuItemId));
+  const removeItem = async (menuItemId: string) => {
+    const updatedItems = cartItems.filter(item => item.menuItemId !== menuItemId);
+    setCartItems(updatedItems);
+    
+    // Immediately save to Firestore to ensure checkout gets the latest data
+    const user = getCurrentUser();
+    if (user) {
+      const subtotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      await saveCart(user.uid, {
+        items: updatedItems,
+        totalAmount: subtotal,
+      });
+    }
   };
 
   return (

@@ -5,7 +5,6 @@ import {
   doc,
   getDoc,
   getDocs,
-  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -161,7 +160,7 @@ export const getUserOrders = async (
 ): Promise<{ success: boolean; data?: Order[]; error?: string }> => {
   try {
     const ordersRef = collection(db, 'orders');
-    const q = query(ordersRef, where('userId', '==', userId), orderBy('orderDate', 'desc'));
+    const q = query(ordersRef, where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
     
     const orders: Order[] = [];
@@ -174,6 +173,9 @@ export const getUserOrders = async (
         actualDeliveryTime: data.actualDeliveryTime?.toDate(),
       } as Order);
     });
+    
+    // Sort in memory instead of in query to avoid needing composite index
+    orders.sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime());
     
     return { success: true, data: orders };
   } catch (error: any) {
