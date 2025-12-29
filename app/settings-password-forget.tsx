@@ -56,8 +56,7 @@ export default function ForgotPasswordScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.description}>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-            eiusmod tempor incididunt ut labore et dolore magna aliqua.
+            Create a strong new password for your account. Make sure it's unique and secure to keep your account protected.
           </Text>
 
           {/* Password */}

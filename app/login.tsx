@@ -76,8 +76,7 @@ export default function LoginScreen() {
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
         <Text style={styles.welcomeTitle}>Welcome</Text>
         <Text style={styles.welcomeDescription}>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-          eiusmod tempor incididunt ut labore et dolore magna aliqua.
+          Sign in to discover delicious meals, track your orders, and enjoy fast delivery from your favorite restaurants.
         </Text>
 
         {/* Email */}

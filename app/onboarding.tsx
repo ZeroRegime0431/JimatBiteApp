@@ -34,7 +34,7 @@ const slides = [
     id: "1",
     title: "Order For Food",
     description:
-      "Lorem ipsum dolor sit amet, conse ctetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna.",
+      "Browse through a wide variety of delicious meals from multiple restaurants. Find your favorites and order with just a few taps.",
     image: PizzaSvg,
     icon: DocumentSvg,
   },
@@ -42,7 +42,7 @@ const slides = [
     id: "2",
     title: "Easy Payment",
     description:
-      "Lorem ipsum dolor sit amet, conse ctetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna.",
+      "Secure and convenient payment options at your fingertips. Pay with your preferred method and enjoy a seamless checkout experience.",
     image: IceCreamSvg,
     icon: CardSvg,
   },
@@ -50,7 +50,7 @@ const slides = [
     id: "3",
     title: "Fast Delivery",
     description:
-      "Lorem ipsum dolor sit amet, conse ctetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna.",
+      "Get your food delivered hot and fresh to your doorstep. Track your order in real-time and enjoy quick, reliable delivery service.",
     image: CoffeeSvg,
     icon: DeliverSvg,
   },
