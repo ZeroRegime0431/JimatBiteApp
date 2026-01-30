@@ -224,8 +224,8 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
               </View>
             ) : (
               <View style={styles.cartItemsContainer}>
-                {cartItems.map((item) => (
-                    <View key={item.menuItemId} style={styles.cartItem}>
+                {cartItems.map((item, index) => (
+                    <View key={`${item.menuItemId}-${index}`} style={styles.cartItem}>
                       <View style={styles.itemImageContainer}>
                         {imageURLs[item.menuItemId] ? (
                           <Image

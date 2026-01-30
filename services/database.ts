@@ -90,9 +90,33 @@ export const saveCart = async (
 ): Promise<{ success: boolean; error?: string }> => {
   try {
     const cartRef = doc(db, 'carts', userId);
+    
+    // Filter out undefined values from cart items
+    const cleanedItems = cart.items.map(item => {
+      const cleanedItem: any = {
+        menuItemId: item.menuItemId,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        imageURL: item.imageURL || '',
+        restaurantId: item.restaurantId,
+        restaurantName: item.restaurantName,
+      };
+      
+      // Remove any undefined values
+      Object.keys(cleanedItem).forEach(key => {
+        if (cleanedItem[key] === undefined) {
+          delete cleanedItem[key];
+        }
+      });
+      
+      return cleanedItem;
+    });
+    
     await setDoc(cartRef, {
       userId,
-      ...cart,
+      items: cleanedItems,
+      totalAmount: cart.totalAmount || 0,
       updatedAt: serverTimestamp(),
     });
     return { success: true };
@@ -312,6 +336,10 @@ export const addFavorite = async (
   menuItem: MenuItem
 ): Promise<{ success: boolean; error?: string }> => {
   try {
+    if (!menuItem.id) {
+      return { success: false, error: 'Invalid menu item: missing id' };
+    }
+    
     const favoriteRef = doc(db, 'favorites', `${userId}_${menuItem.id}`);
     await setDoc(favoriteRef, {
       userId,

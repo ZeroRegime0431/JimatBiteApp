@@ -225,6 +225,11 @@ export default function MenuItemDetailScreen() {
       return;
     }
 
+    if (!item.id) {
+      alert('Invalid item data');
+      return;
+    }
+
     if (isFavorite) {
       // Remove from favorites
       await removeFavorite(user.uid, item.id);
