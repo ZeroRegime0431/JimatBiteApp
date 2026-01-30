@@ -304,3 +304,78 @@ export const getMenuItem = async (
     return { success: false, error: error.message };
   }
 };
+
+// ============= FAVORITES =============
+
+export const addFavorite = async (
+  userId: string,
+  menuItem: MenuItem
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const favoriteRef = doc(db, 'favorites', `${userId}_${menuItem.id}`);
+    await setDoc(favoriteRef, {
+      userId,
+      menuItemId: menuItem.id,
+      menuItem,
+      createdAt: serverTimestamp(),
+    });
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error adding favorite:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const removeFavorite = async (
+  userId: string,
+  menuItemId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const favoriteRef = doc(db, 'favorites', `${userId}_${menuItemId}`);
+    await deleteDoc(favoriteRef);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error removing favorite:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const getFavorites = async (
+  userId: string
+): Promise<{ success: boolean; data?: MenuItem[]; error?: string }> => {
+  try {
+    const favoritesRef = collection(db, 'favorites');
+    const q = query(favoritesRef, where('userId', '==', userId));
+    const querySnapshot = await getDocs(q);
+    
+    const favorites: MenuItem[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data.menuItem) {
+        favorites.push({
+          ...data.menuItem,
+          createdAt: data.menuItem.createdAt?.toDate ? data.menuItem.createdAt.toDate() : data.menuItem.createdAt,
+        } as MenuItem);
+      }
+    });
+    
+    return { success: true, data: favorites };
+  } catch (error: any) {
+    console.error('Error getting favorites:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const isFavorite = async (
+  userId: string,
+  menuItemId: string
+): Promise<{ success: boolean; isFavorite?: boolean; error?: string }> => {
+  try {
+    const favoriteRef = doc(db, 'favorites', `${userId}_${menuItemId}`);
+    const favoriteSnap = await getDoc(favoriteRef);
+    return { success: true, isFavorite: favoriteSnap.exists() };
+  } catch (error: any) {
+    console.error('Error checking favorite:', error);
+    return { success: false, error: error.message };
+  }
+};

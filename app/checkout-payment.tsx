@@ -324,7 +324,7 @@ export default function CheckoutPaymentScreen() {
         <Pressable style={styles.navButton}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navButton}>
+        <Pressable style={styles.navButton} onPress={() => router.push('/favorites-page')}>
           <FavouriteSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navButton}>

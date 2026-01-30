@@ -286,7 +286,7 @@ export default function HomePage() {
         <Pressable style={styles.navItem} onPress={() => {}}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => {}}>
+        <Pressable style={styles.navItem} onPress={() => router.push('/favorites-page')}>
           <FavouriteSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navItem} onPress={() => {}}>
@@ -362,7 +362,11 @@ const styles = StyleSheet.create({
   distanceText: { fontSize: 12, color: '#888', marginLeft: 8, left: -24 },
   recommendPrice: { marginTop: 2, color: '#1A5D1A', fontWeight: '700' },
 
-  bottomNav: { position: 'absolute', left: 12, right: 12, bottom: 18, height: 64, backgroundColor: '#1A5D1A', borderRadius: 34, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingHorizontal: 10 },
+  bottomNav: { position: 'absolute', left: 12, right: 12, 
+    bottom: 18, height: 64, backgroundColor: '#1A5D1A', 
+    borderRadius: 34, flexDirection: 'row', justifyContent: 'space-around', 
+    alignItems: 'center', paddingHorizontal: 10 },
+    
   navItem: { alignItems: 'center', justifyContent: 'center' },
   navIcon: { width: 26, height: 26, tintColor: '#fff', resizeMode: 'contain' },
 });

@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { storage } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
-import { getCart, saveCart } from '../services/database';
+import { addFavorite, isFavorite as checkIsFavorite, getCart, removeFavorite, saveCart } from '../services/database';
 import { CartItem, MenuItem } from '../types';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
@@ -40,6 +40,7 @@ export default function MenuItemDetailScreen() {
   const [showCartSidebar, setShowCartSidebar] = useState(false);
   const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   // Parse item data from params
   const item: MenuItem = {
@@ -116,6 +117,7 @@ export default function MenuItemDetailScreen() {
 
   useEffect(() => {
     checkCartStatus();
+    checkFavoriteStatus();
   }, []);
 
   const checkCartStatus = async () => {
@@ -130,6 +132,16 @@ export default function MenuItemDetailScreen() {
           setIsInCart(true);
           setCartQuantity(existingItem.quantity);
         }
+      }
+    }
+  };
+
+  const checkFavoriteStatus = async () => {
+    const user = getCurrentUser();
+    if (user) {
+      const result = await checkIsFavorite(user.uid, item.id);
+      if (result.success && result.isFavorite) {
+        setIsFavorite(true);
       }
     }
   };
@@ -205,6 +217,25 @@ export default function MenuItemDetailScreen() {
     }
   };
 
+  const toggleFavorite = async () => {
+    const user = getCurrentUser();
+    if (!user) {
+      alert('Please login to add favorites');
+      router.push('/login');
+      return;
+    }
+
+    if (isFavorite) {
+      // Remove from favorites
+      await removeFavorite(user.uid, item.id);
+      setIsFavorite(false);
+    } else {
+      // Add to favorites
+      await addFavorite(user.uid, item);
+      setIsFavorite(true);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -235,13 +266,19 @@ export default function MenuItemDetailScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Restaurant Badge */}
-        {item.rating && (
-          <View style={styles.ratingBadge}>
-            <Text style={styles.ratingNumber}>{item.rating.toFixed(1)}</Text>
-            <Text style={styles.ratingLabel}>⭐ Click To View</Text>
-          </View>
-        )}
+        {/* Rating and Favorite Container */}
+        <View style={styles.ratingFavoriteContainer}>
+          {item.rating && (
+            <View style={styles.ratingBadge}>
+              <Text style={styles.ratingNumber}>{item.rating.toFixed(1)}</Text>
+              <Text style={styles.ratingLabel}>⭐ Click To View</Text>
+            </View>
+          )}
+          <Pressable onPress={toggleFavorite} style={styles.favoriteButton}>
+            <Text style={styles.favoriteIcon}>{isFavorite ? '❤️' : '🤍'}</Text>
+            <Text style={styles.favoriteText}>{isFavorite ? 'Favourited' : 'Favourite'}</Text>
+          </Pressable>
+        </View>
 
         {/* Item Image */}
         <View style={styles.imageContainer}>
@@ -342,7 +379,7 @@ export default function MenuItemDetailScreen() {
         <Pressable style={styles.navItem}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem}>
+        <Pressable style={styles.navItem} onPress={() => router.push('/favorites-page')}>
           <FavouriteSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navItem}>
@@ -436,17 +473,44 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
     backgroundColor: '#fff',
   },
+  ratingFavoriteContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 15,
+  },
   ratingBadge: {
     backgroundColor: '#FF6347',
     borderRadius: 20,
     paddingVertical: 6,
     paddingHorizontal: 15,
-    alignSelf: 'flex-start',
-    marginLeft: 20,
-    marginBottom: 15,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+  },
+  favoriteButton: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  favoriteIcon: {
+    fontSize: 18,
+  },
+  favoriteText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
   },
   ratingNumber: {
     color: '#fff',
