@@ -1,111 +1,39 @@
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import BestsellingSvg from '../assets/HomePage/icons/bestselling.svg';
 import FavouriteSvg from '../assets/HomePage/icons/favourite.svg';
 import HomeSvg from '../assets/HomePage/icons/home.svg';
 import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
-import BeanBurgerSvg from '../assets/OrderImages/beanandvegetableburger.svg';
-import ChickenCurrySvg from '../assets/OrderImages/chickencurry.svg';
-import CoffeeLatteSvg from '../assets/OrderImages/coffeelatte.svg';
-import StrawberryCheesecakeSvg from '../assets/OrderImages/strawberrycheesecake.svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
-
-interface Order {
-  id: string;
-  name: string;
-  price: number;
-  date: string;
-  time: string;
-  itemCount: number;
-  image: any;
-  status: string;
-}
+import { getCurrentUser } from '../services/auth';
+import { getUserOrders } from '../services/database';
+import type { Order } from '../types';
 
 export default function MyOrdersCompletedScreen() {
-  const [orders] = useState<Order[]>([
-    {
-      id: '1',
-      name: 'Chicken Curry',
-      price: 50.0,
-      date: '29 Nov',
-      time: '1:20 pm',
-      itemCount: 2,
-      image: ChickenCurrySvg,
-      status: 'Delivered',
-    },
-     {
-      id: '2',
-      name: 'Bean and Vegetable Burger',
-      price: 50.0,
-      date: '10 Nov',
-      time: '06:05 pm',
-      itemCount: 2,
-      image: BeanBurgerSvg,
-      status: 'Delivered',
-    },
-    {
-      id: '3',
-      name: 'Coffe Latte',
-      price: 8.0,
-      date: '10 Nov',
-      time: '8:30 am',
-      itemCount: 1,
-      image: CoffeeLatteSvg,
-      status: 'Delivered',
-    },
-      {
-      id: '4',
-      name: 'strawberry Cheesecake',
-      price: 22.0,
-      date: '03 Oct',
-      time: '3:40 pm',
-      itemCount: 2,
-      image: StrawberryCheesecakeSvg,
-      status: 'Delivered',
-    },
-     {
-      id: '5',
-      name: 'Noodle Bowl',
-      price: 17.0,
-      date: '01 Oct',
-      time: '5:40 pm',
-      itemCount: 1,
-      image: require('../assets/OrderImages/image11.png'),
-      status: 'Delivered',
-    },
-    {
-      id: '6',
-      name: 'Grilled Chicken Thigh',
-      price: 24.0,
-      date: '29 Aug',
-      time: '6:10 pm',
-      itemCount: 1,
-      image: require('../assets/OrderImages/image12.png'),
-      status: 'Delivered',
-    },
-    {
-      id: '7',
-      name: 'Chicken Thali',
-      price: 9.0,
-      date: '24 Aug',
-      time: '7:30 pm',
-      itemCount: 1,
-      image: require('../assets/OrderImages/image13.png'),
-      status: 'Delivered',
-    },
-    {
-      id: '8',
-      name: 'KFC Chicken Strips',
-      price: 22.0,
-      date: '20 Aug',
-      time: '9:40 pm',
-      itemCount: 1,
-      image: require('../assets/OrderImages/image14.png'),
-      status: 'Delivered',
-    },
-  ]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadCompletedOrders();
+  }, []);
+
+  const loadCompletedOrders = async () => {
+    setLoading(true);
+    const user = getCurrentUser();
+    if (user) {
+      const result = await getUserOrders(user.uid);
+      if (result.success && result.data) {
+        // Filter only completed orders (delivered status)
+        const completedOrders = result.data.filter(
+          order => order.status === 'delivered'
+        );
+        setOrders(completedOrders);
+      }
+    }
+    setLoading(false);
+  };
 
   const handleTabChange = (tab: 'active' | 'cancelled') => {
     if (tab === 'active') router.push('./myorders-active');
@@ -139,35 +67,46 @@ export default function MyOrdersCompletedScreen() {
           </View>
 
           <View style={styles.ordersContainer}>
-            {orders.map(order => (
-              <View key={order.id} style={styles.orderCard}>
-                {typeof order.image === 'number' ? (
-                  <Image source={order.image} style={styles.orderImage} />
-                ) : (
-                  <View style={styles.orderImage}>
-                    <order.image width={80} height={80} />
-                  </View>
-                )}
-                <View style={styles.orderDetails}>
-                  <Text style={styles.orderName}>{order.name}</Text>
-                  <Text style={styles.orderDateTime}>{order.date}, {order.time}</Text>
-                  <Text style={styles.itemCount}>{order.itemCount} items</Text>
-                  <View style={styles.orderActions}>
-                    <View style={styles.completedButton}>
-                      <Text style={styles.completedButtonText}>{order.status}</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.orderRightSection}>
-                  <Text style={styles.orderPrice}>${order.price.toFixed(2)}</Text>
-                </View>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#1A5D1A" />
+                <Text style={styles.loadingText}>Loading orders...</Text>
               </View>
-            ))}
-
-            {orders.length === 0 && (
+            ) : orders.length === 0 ? (
               <View style={styles.emptyStateContainer}>
                 <Text style={styles.emptyStateText}>No completed orders</Text>
               </View>
+            ) : (
+              orders.map(order => (
+                <Pressable 
+                  key={order.id} 
+                  style={styles.orderCard}
+                  onPress={() => router.push({
+                    pathname: './order-details',
+                    params: { orderId: order.id }
+                  })}
+                >
+                  <View style={styles.orderImagePlaceholder}>
+                    <Text style={styles.orderImageText}>📦</Text>
+                  </View>
+                  <View style={styles.orderDetails}>
+                    <Text style={styles.orderName}>Order #{order.id.substring(0, 8)}</Text>
+                    <Text style={styles.orderDateTime}>
+                      {order.orderDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}, {' '}
+                      {order.orderDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                    <Text style={styles.itemCount}>{order.items.length} items</Text>
+                    <View style={styles.orderActions}>
+                      <View style={styles.completedButton}>
+                        <Text style={styles.completedButtonText}>Delivered</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.orderRightSection}>
+                    <Text style={styles.orderPrice}>${order.grandTotal.toFixed(2)}</Text>
+                  </View>
+                </Pressable>
+              ))
             )}
           </View>
         </ScrollView>
@@ -258,6 +197,28 @@ const styles = StyleSheet.create({
     borderColor: '#F1E9E6' 
   },
   orderImage: { width: 80, height: 80, borderRadius: 8, marginRight: 12 },
+  orderImagePlaceholder: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 8, 
+    marginRight: 12,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  orderImageText: {
+    fontSize: 32,
+  },
+  loadingContainer: { 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    paddingVertical: 40 
+  },
+  loadingText: { 
+    fontSize: 16, 
+    color: '#9CA3AF',
+    marginTop: 12,
+  },
   orderDetails: { flex: 1 },
   orderName: { fontSize: 16, fontWeight: '600', color: '#111827' },
   orderDateTime: { fontSize: 12, color: '#6B7280', marginTop: 4 },

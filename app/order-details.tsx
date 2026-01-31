@@ -1,14 +1,17 @@
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getDownloadURL, ref } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 import { storage } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
-import { getUserOrders } from '../services/database';
+import { getUserOrders, updateOrderStatus } from '../services/database';
 import type { Order } from '../types';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function OrderDetailsScreen() {
   const { orderId } = useLocalSearchParams();
@@ -16,6 +19,11 @@ export default function OrderDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [imageURLs, setImageURLs] = useState<{[key: string]: string}>({});
   const [qrRefreshToken, setQrRefreshToken] = useState(Date.now());
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = useState(false);
 
   useEffect(() => {
     loadOrderDetails();
@@ -98,6 +106,68 @@ export default function OrderDetailsScreen() {
 
   const getStatusText = (status: Order['status']) => {
     return status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
+  };
+
+  const handleQRCodePress = () => {
+    setShowCompleteDialog(true);
+  };
+
+  const handleOpenScanner = async () => {
+    if (!permission) {
+      const { status } = await requestPermission();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Camera permission is required to scan QR codes.');
+        return;
+      }
+    } else if (!permission.granted) {
+      const { status } = await requestPermission();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Camera permission is required to scan QR codes.');
+        return;
+      }
+    }
+    setScanned(false);
+    setShowScanner(true);
+  };
+
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+    if (scanned) return;
+    
+    setScanned(true);
+    setShowScanner(false);
+    
+    // Check if the scanned QR code contains the order ID
+    if (data.includes(`Order ${orderId}`)) {
+      setShowCompleteDialog(true);
+    } else {
+      Alert.alert('Invalid QR Code', 'This QR code does not match this order.');
+    }
+  };
+
+  const handleCompleteOrder = async () => {
+    if (!order) return;
+    
+    setCompleting(true);
+    const result = await updateOrderStatus(order.id, 'delivered');
+    
+    if (result.success) {
+      Alert.alert(
+        'Order Completed!',
+        'The order has been marked as delivered.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setShowCompleteDialog(false);
+              router.back();
+            }
+          }
+        ]
+      );
+    } else {
+      Alert.alert('Error', 'Failed to complete order. Please try again.');
+      setCompleting(false);
+    }
   };
 
   const getCategoryColor = (name: string) => {
@@ -285,23 +355,95 @@ export default function OrderDetailsScreen() {
           </Text>
         </View>
 
-        {/* QR Code for Order Confirmation */}
-        <View style={styles.qrSection}>
-          <Text style={styles.qrTitle}>Order Confirmation QR Code</Text>
-          <Text style={styles.qrSubtitle}>Scan to confirm delivery receipt</Text>
-          <View style={styles.qrCodeContainer}>
-            <QRCode
-              value={`Order ${order.id} has been received by the customer. Thank you for your service and please come again! We appreciate your business with JimatBite. Confirmation Time: ${new Date(qrRefreshToken).toLocaleString()}`}
-              size={200}
-              color="#1A5D1A"
-              backgroundColor="white"
-            />
+        {/* QR Code for Order Confirmation - Only show for active orders */}
+        {order.status !== 'delivered' && order.status !== 'cancelled' && (
+          <View style={styles.qrSection}>
+            <Text style={styles.qrTitle}>Order Confirmation QR Code</Text>
+            <Text style={styles.qrSubtitle}>Scan to confirm delivery receipt</Text>
+            <Pressable onPress={handleQRCodePress} style={styles.qrCodeContainer}>
+              <QRCode
+                value={`Order ${order.id} has been received by the customer. Thank you for your service and please come again! We appreciate your business with JimatBite. Confirmation Time: ${new Date(qrRefreshToken).toLocaleString()}`}
+                size={200}
+                color="#1A5D1A"
+                backgroundColor="white"
+              />
+            </Pressable>
+            <Pressable style={styles.scanButton} onPress={handleOpenScanner}>
+              <Text style={styles.scanButtonText}>📷 Scan QR Code</Text>
+            </Pressable>
+            <Pressable style={styles.refreshButton} onPress={handleRefreshQR}>
+              <Text style={styles.refreshButtonText}>🔄 Refresh QR Code</Text>
+            </Pressable>
+            <Text style={styles.qrNote}>QR code refreshes every 2 minutes • Show this to the delivery person</Text>
           </View>
-          <Pressable style={styles.refreshButton} onPress={handleRefreshQR}>
-            <Text style={styles.refreshButtonText}>🔄 Refresh QR Code</Text>
-          </Pressable>
-          <Text style={styles.qrNote}>QR code refreshes every 2 minutes • Show this to the delivery person</Text>
-        </View>
+        )}
+
+        {/* QR Scanner Modal */}
+        <Modal
+          transparent={false}
+          visible={showScanner}
+          animationType="slide"
+          onRequestClose={() => setShowScanner(false)}
+        >
+          <View style={styles.scannerContainer}>
+            <View style={styles.scannerHeader}>
+              <Text style={styles.scannerTitle}>Scan QR Code</Text>
+              <Pressable onPress={() => setShowScanner(false)} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>✕</Text>
+              </Pressable>
+            </View>
+            <CameraView
+              style={styles.camera}
+              facing="back"
+              onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+              barcodeScannerSettings={{
+                barcodeTypes: ['qr'],
+              }}
+            />
+            <View style={styles.scannerOverlay}>
+              <Text style={styles.scannerInstructions}>Position the QR code within the frame</Text>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Complete Order Dialog */}
+        <Modal
+          transparent={true}
+          visible={showCompleteDialog}
+          animationType="fade"
+          onRequestClose={() => setShowCompleteDialog(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.dialogContainer}>
+              <Text style={styles.dialogTitle}>Complete Order</Text>
+              <Text style={styles.dialogMessage}>
+                Are you sure you want to mark this order as completed?
+              </Text>
+              
+              <View style={styles.dialogButtons}>
+                <Pressable 
+                  style={[styles.dialogButton, styles.cancelButton]}
+                  onPress={() => setShowCompleteDialog(false)}
+                  disabled={completing}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </Pressable>
+                
+                <Pressable 
+                  style={[styles.dialogButton, styles.completeButton]}
+                  onPress={handleCompleteOrder}
+                  disabled={completing}
+                >
+                  {completing ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.completeButtonText}>Complete</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </View>
   );
@@ -600,6 +742,122 @@ const styles = StyleSheet.create({
   refreshButtonText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  scanButton: {
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  scanButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  scannerContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  scannerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: '#1A5D1A',
+  },
+  scannerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 28,
+    color: '#fff',
+    fontWeight: '300',
+  },
+  camera: {
+    flex: 1,
+  },
+  scannerOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: 30,
+    alignItems: 'center',
+  },
+  scannerInstructions: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dialogContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+    elevation: 5,
+  },
+  dialogTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A5D1A',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  dialogMessage: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 24,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  dialogButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  dialogButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  cancelButton: {
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  completeButton: {
+    backgroundColor: '#1A5D1A',
+  },
+  completeButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
   },
 });
