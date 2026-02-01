@@ -73,7 +73,7 @@ export default function SideBar({ visible, onClose }: SideBarProps) {
     { icon: MyProfileSvg, label: 'My Profile', action: () => { onClose(); router.push('./MyProfile'); } },
     { icon: AddressSvg, label: 'Delivery Address', action: () => console.log('Delivery Address') },
     { icon: PaymentSvg, label: 'Payment Methods', action: () => { onClose(); router.push('./payment-method'); } },
-    { icon: ContactSvg, label: 'Contact Us', action: () => console.log('Contact Us') },
+    { icon: ContactSvg, label: 'Contact Us', action: () => { onClose(); router.push('./contact-us'); } },
     { icon: HelpSvg, label: 'Help & FAQs', action: () => console.log('Help & FAQs') },
     { icon: SettingsSvg, label: 'Settings', action: () => { onClose(); router.push('./settings'); } },
   ];

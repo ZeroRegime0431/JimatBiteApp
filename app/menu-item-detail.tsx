@@ -381,7 +381,7 @@ export default function MenuItemDetailScreen() {
         <Pressable style={styles.navItem} onPress={() => router.push('/home-page')}>
           <HomeSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem}>
+        <Pressable style={styles.navItem} onPress={() => router.push('./best-seller-page')}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navItem} onPress={() => router.push('/favorites-page')}>

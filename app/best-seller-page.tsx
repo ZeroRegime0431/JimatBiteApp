@@ -1,11 +1,10 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { getDownloadURL, ref } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { storage } from '../config/firebase';
-import { getCurrentUser } from '../services/auth';
-import { getFavorites, removeFavorite } from '../services/database';
+import { db, storage } from '../config/firebase';
 import { MenuItem } from '../types';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
@@ -26,9 +25,9 @@ import SupportSvg from '../assets/HomePage/icons/support.svg';
 
 const { width } = Dimensions.get('window');
 
-export default function FavoritesScreen() {
+export default function BestSellerScreen() {
   const [currentTime, setCurrentTime] = useState('');
-  const [favorites, setFavorites] = useState<MenuItem[]>([]);
+  const [bestSellers, setBestSellers] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCartSidebar, setShowCartSidebar] = useState(false);
   const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
@@ -50,26 +49,41 @@ export default function FavoritesScreen() {
   }, []);
 
   useEffect(() => {
-    loadFavorites();
+    loadBestSellers();
   }, []);
 
-  const loadFavorites = async () => {
-    const user = getCurrentUser();
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
+  const loadBestSellers = async () => {
     setLoading(true);
-    const result = await getFavorites(user.uid);
-    if (result.success && result.data) {
-      setFavorites(result.data);
+    try {
+      const menuItemsRef = collection(db, 'menuItems');
+      const q = query(
+        menuItemsRef,
+        where('isAvailable', '==', true)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const items: MenuItem[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        // Filter by rating > 4.5 on client side to avoid composite index
+        if (data.rating && data.rating > 4.5) {
+          items.push({
+            ...data,
+            createdAt: data.createdAt?.toDate(),
+          } as MenuItem);
+        }
+      });
+
+      setBestSellers(items);
+      
       // Load fresh image URLs
-      result.data.forEach(item => {
+      items.forEach(item => {
         if (item.imageURL) {
           getFreshImageURL(item.id, item.imageURL);
         }
       });
+    } catch (error) {
+      console.error('Error loading best sellers:', error);
     }
     setLoading(false);
   };
@@ -94,15 +108,6 @@ export default function FavoritesScreen() {
     } catch (error) {
       console.error('Error loading image:', error);
     }
-  };
-
-  const handleRemoveFavorite = async (item: MenuItem, event: any) => {
-    event.stopPropagation();
-    const user = getCurrentUser();
-    if (!user) return;
-
-    await removeFavorite(user.uid, item.id);
-    setFavorites(prev => prev.filter(fav => fav.id !== item.id));
   };
 
   const handleItemPress = (item: MenuItem) => {
@@ -157,46 +162,43 @@ export default function FavoritesScreen() {
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <BackArrowLeftSvg width={24} height={24} />
         </Pressable>
-        <Text style={styles.title}>Favorites</Text>
+        <Text style={styles.title}>Best Seller</Text>
         <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Subtitle */}
-        <Text style={styles.subtitle}>It's time to buy your favorite dish.</Text>
+        <Text style={styles.subtitle}>Discover our most popular dishes!</Text>
 
-        {/* Favorites Grid */}
+        {/* Best Sellers Grid */}
         {loading ? (
           <View style={styles.loadingContainer}>
             <Text style={styles.loadingText}>Loading...</Text>
           </View>
-        ) : favorites.length === 0 ? (
+        ) : bestSellers.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No favorites yet!</Text>
-            <Text style={styles.emptySubtext}>Start adding items to your favorites</Text>
+            <Text style={styles.emptyText}>No best sellers yet!</Text>
+            <Text style={styles.emptySubtext}>Check back later for top-rated items</Text>
           </View>
         ) : (
           <View style={styles.gridContainer}>
-            {favorites.map((item) => (
+            {bestSellers.map((item) => (
               <Pressable
                 key={item.id}
                 style={styles.card}
                 onPress={() => handleItemPress(item)}
               >
-                {/* Discount Badge */}
+                {/* Rating Badge */}
                 {item.rating && (
                   <View style={styles.discountBadge}>
                     <Text style={styles.discountText}>{item.rating.toFixed(1)}⭐</Text>
                   </View>
                 )}
 
-                {/* Heart Button */}
-                <Pressable
-                  style={styles.heartButton}
-                  onPress={(e) => handleRemoveFavorite(item, e)}
-                >
-                  <Text style={styles.heartIcon}>❤️</Text>
-                </Pressable>
+                {/* Heart Button (Empty for best sellers) */}
+                <View style={styles.heartButton}>
+                  <Text style={styles.heartIcon}>🔥</Text>
+                </View>
 
                 {/* Item Image */}
                 <View style={styles.imageContainer}>
@@ -212,6 +214,11 @@ export default function FavoritesScreen() {
                       <Text style={styles.placeholderText}>{item.name.charAt(0)}</Text>
                     </View>
                   )}
+                </View>
+
+                {/* Price Badge */}
+                <View style={styles.priceBadge}>
+                  <Text style={styles.priceText}>${item.price.toFixed(2)}</Text>
                 </View>
 
                 {/* Item Details */}
@@ -248,16 +255,16 @@ export default function FavoritesScreen() {
 
       {/* Sidebars */}
       <NotificationSidebar 
-        visible={showNotificationSidebar} 
-        onClose={() => setShowNotificationSidebar(false)} 
+        visible={showNotificationSidebar}
+        onClose={() => setShowNotificationSidebar(false)}
       />
       <CartSidebar 
-        visible={showCartSidebar} 
-        onClose={() => setShowCartSidebar(false)} 
+        visible={showCartSidebar}
+        onClose={() => setShowCartSidebar(false)}
       />
       <SideBar 
-        visible={showProfileSidebar} 
-        onClose={() => setShowProfileSidebar(false)} 
+        visible={showProfileSidebar}
+        onClose={() => setShowProfileSidebar(false)}
       />
     </View>
   );
@@ -266,15 +273,15 @@ export default function FavoritesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#ffffffff',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 10,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 16,
     backgroundColor: '#F4FFC9',
   },
   timeText: {
@@ -289,6 +296,8 @@ const styles = StyleSheet.create({
   iconButton: {
     width: 32,
     height: 32,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -296,54 +305,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#F4FFC9',
   },
   backButton: {
-    padding: 5,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F4FFC9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 22,
     fontWeight: '700',
     color: '#2E7D32',
-    flex: 1,
-    textAlign: 'center',
   },
   placeholder: {
-    width: 34,
+    width: 40,
   },
   scrollView: {
     flex: 1,
+    paddingHorizontal: 16,
   },
   subtitle: {
     fontSize: 16,
-    color: '#2E7D32',
-    textAlign: 'center',
-    marginVertical: 20,
-    paddingHorizontal: 20,
-    fontStyle: 'italic',
+    color: '#666',
+    marginTop: 8,
+    marginBottom: 20,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 50,
+    paddingVertical: 60,
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
+    color: '#999',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 50,
+    paddingVertical: 60,
   },
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#666',
+    color: '#333',
     marginBottom: 8,
   },
   emptySubtext: {
@@ -353,16 +364,15 @@ const styles = StyleSheet.create({
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    gap: 16,
+    paddingBottom: 20,
   },
   card: {
-    width: (width - 56) / 2,
+    width: (width - 48) / 2,
     backgroundColor: '#fff',
-    borderRadius: 20,
-    marginBottom: 16,
+    borderRadius: 16,
     overflow: 'hidden',
-    elevation: 5,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -370,30 +380,30 @@ const styles = StyleSheet.create({
   },
   discountBadge: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: '#FF6347',
-    borderRadius: 15,
+    top: 8,
+    left: 8,
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    paddingHorizontal: 10,
-    zIndex: 10,
+    borderRadius: 8,
+    zIndex: 1,
   },
   discountText: {
-    color: '#fff',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
+    color: '#fff',
   },
   heartButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#fff',
-    borderRadius: 15,
-    width: 30,
-    height: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
+    zIndex: 1,
     elevation: 2,
   },
   heartIcon: {
@@ -402,7 +412,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: '100%',
     height: 140,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F5F5F5',
   },
   itemImage: {
     width: '100%',
@@ -419,35 +429,51 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
+  priceBadge: {
+    position: 'absolute',
+    bottom: 80,
+    right: 8,
+    backgroundColor: '#FF6347',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  priceText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
   itemDetails: {
     padding: 12,
   },
   itemName: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     color: '#333',
     marginBottom: 4,
   },
   itemDescription: {
-    fontSize: 11,
-    color: '#666',
-    lineHeight: 14,
+    fontSize: 12,
+    color: '#999',
+    lineHeight: 16,
   },
   bottomNav: {
     position: 'absolute',
+    bottom: 18,
     left: 12,
     right: 12,
-    bottom: 18,
-    height: 64,
-    backgroundColor: '#1A5D1A',
-    borderRadius: 34,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingVertical: 10,
+    backgroundColor: '#1A5D1A',
+    borderRadius: 34,
+    elevation: 5,
   },
   navItem: {
-    alignItems: 'center',
+    width: 44,
+    height: 44,
     justifyContent: 'center',
+    alignItems: 'center',
   },
 });

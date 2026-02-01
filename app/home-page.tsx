@@ -291,7 +291,7 @@ export default function HomePage() {
         <Pressable style={styles.navItem} onPress={() => {}}>
           <HomeSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => {}}>
+        <Pressable style={styles.navItem} onPress={() => router.push('./best-seller-page')}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navItem} onPress={() => router.push('/favorites-page')}>

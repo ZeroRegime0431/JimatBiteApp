@@ -116,7 +116,7 @@ export default function MyOrdersCompletedScreen() {
         <Pressable style={styles.navIcon} onPress={() => router.push('./home-page')}>
           <HomeSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navIcon}>
+        <Pressable style={styles.navIcon} onPress={() => router.push('./best-seller-page')}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navIcon} onPress={() => router.push('/favorites-page')}>
