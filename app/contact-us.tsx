@@ -16,7 +16,6 @@ type ExpandedSection = 'customer' | 'website' | 'whatsapp' | 'facebook' | 'insta
 
 export default function ContactUsScreen() {
   const [currentTime, setCurrentTime] = useState('');
-  const [activeTab, setActiveTab] = useState<'faq' | 'contact'>('contact');
   const [expandedSection, setExpandedSection] = useState<ExpandedSection>(null);
 
   React.useEffect(() => {
@@ -92,23 +91,22 @@ export default function ContactUsScreen() {
       {/* Tab Buttons */}
       <View style={styles.tabContainer}>
         <Pressable 
-          style={[styles.tabButton, activeTab === 'faq' && styles.tabButtonActive]}
-          onPress={() => setActiveTab('faq')}
+          style={styles.tabButton}
+          onPress={() => router.push('./help-faq')}
         >
-          <Text style={[styles.tabText, activeTab === 'faq' && styles.tabTextActive]}>FAQ</Text>
+          <Text style={styles.tabText}>FAQ</Text>
         </Pressable>
         <Pressable 
-          style={[styles.tabButton, activeTab === 'contact' && styles.tabButtonActive]}
-          onPress={() => setActiveTab('contact')}
+          style={[styles.tabButton, styles.tabButtonActive]}
+          onPress={() => {}}
         >
-          <Text style={[styles.tabText, activeTab === 'contact' && styles.tabTextActive]}>Contact Us</Text>
+          <Text style={[styles.tabText, styles.tabTextActive]}>Contact Us</Text>
         </Pressable>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {activeTab === 'contact' ? (
-          <View style={styles.optionsContainer}>
-            {contactOptions.map((option) => (
+        <View style={styles.optionsContainer}>
+          {contactOptions.map((option) => (
               <View key={option.id} style={styles.optionWrapper}>
                 <Pressable
                   style={styles.optionButton}
@@ -133,38 +131,6 @@ export default function ContactUsScreen() {
               </View>
             ))}
           </View>
-        ) : (
-          <View style={styles.faqContainer}>
-            <View style={styles.faqItem}>
-              <Text style={styles.faqQuestion}>Q: How do I place an order?</Text>
-              <Text style={styles.faqAnswer}>
-                A: Simply browse our menu, add items to your cart, and proceed to checkout. 
-                You can pay using various payment methods.
-              </Text>
-            </View>
-            <View style={styles.faqItem}>
-              <Text style={styles.faqQuestion}>Q: What are the delivery hours?</Text>
-              <Text style={styles.faqAnswer}>
-                A: We deliver from 9:00 AM to 10:00 PM daily. Delivery times may vary 
-                based on your location and order volume.
-              </Text>
-            </View>
-            <View style={styles.faqItem}>
-              <Text style={styles.faqQuestion}>Q: Can I cancel my order?</Text>
-              <Text style={styles.faqAnswer}>
-                A: Yes, you can cancel your order within 5 minutes of placing it. 
-                Go to My Orders and select the cancel option.
-              </Text>
-            </View>
-            <View style={styles.faqItem}>
-              <Text style={styles.faqQuestion}>Q: How do I track my order?</Text>
-              <Text style={styles.faqAnswer}>
-                A: Track your order in real-time from the My Orders section. 
-                You'll see the current status and estimated delivery time.
-              </Text>
-            </View>
-          </View>
-        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -195,6 +161,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F3FFCF',
+    top: -30,
   },
   header: {
     flexDirection: 'row',
@@ -222,7 +189,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#fafafa',
+    backgroundColor: '#F3FFCF',
     justifyContent: 'center',
     alignItems: 'center',
   },
