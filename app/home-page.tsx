@@ -1,10 +1,12 @@
 import { auth } from '@/config/firebase';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Dimensions, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { getMenuItems } from '../services/database';
+import { MenuItem } from '../types';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
 import SideBar from './side-bar';
@@ -76,6 +78,9 @@ export default function HomePage() {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [cartVisible, setCartVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allMenuItems, setAllMenuItems] = useState<MenuItem[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   // Admin emails that can see the populate button
   const ADMIN_EMAILS = ['ali@example.com', 'hamza@example.com'];
@@ -87,6 +92,29 @@ export default function HomePage() {
       setIsAdmin(ADMIN_EMAILS.includes(currentUser.email.toLowerCase()));
     }
   }, []);
+
+  useEffect(() => {
+    // Load all menu items when search starts
+    const loadAllItems = async () => {
+      if (searchQuery.length > 0 && allMenuItems.length === 0) {
+        setSearchLoading(true);
+        const categories = ['meal', 'vegan', 'drink', 'dessert', 'blindbox'];
+        const allItems: MenuItem[] = [];
+        
+        for (const category of categories) {
+          const result = await getMenuItems(category);
+          if (result.success && result.data) {
+            allItems.push(...result.data);
+          }
+        }
+        
+        setAllMenuItems(allItems);
+        setSearchLoading(false);
+      }
+    };
+    
+    loadAllItems();
+  }, [searchQuery]);
 
   const getGreeting = () => {
     const currentHour = new Date().getHours();
@@ -119,6 +147,14 @@ export default function HomePage() {
     setRatedItems(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const filteredSearchResults = allMenuItems.filter(item =>
+    searchQuery.trim() !== '' && (
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.restaurantName.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  );
+
   return (
     <ThemedView style={styles.container}>
       <SideBar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
@@ -127,7 +163,13 @@ export default function HomePage() {
       <View style={styles.headerArea}>
         <View style={styles.topRow}>
           <View style={styles.searchWrap}>
-            <TextInput placeholder="Search" placeholderTextColor="#7a7a7a" style={styles.search} />
+            <TextInput 
+              placeholder="Search" 
+              placeholderTextColor="#7a7a7a" 
+              style={styles.search}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
             <Pressable style={styles.filterButton} onPress={() => {}}>
               <topIcons.filter width={22} height={22} />
             </Pressable>
@@ -144,6 +186,68 @@ export default function HomePage() {
           </Pressable>
         </View>
       </View>
+
+      {searchQuery.trim() !== '' && (
+        <>
+          <Pressable 
+            style={styles.searchBackdrop}
+            onPress={() => setSearchQuery('')}
+          />
+          <View style={styles.searchResultsContainer}>
+            <ScrollView style={styles.searchResultsScroll} showsVerticalScrollIndicator={false}>
+              {searchLoading ? (
+              <View style={styles.searchLoadingContainer}>
+                <ActivityIndicator size="large" color="#1A5D1A" />
+                <Text style={styles.searchLoadingText}>Searching...</Text>
+              </View>
+            ) : filteredSearchResults.length === 0 ? (
+              <View style={styles.searchEmptyContainer}>
+                <Text style={styles.searchEmptyText}>No items found</Text>
+                <Text style={styles.searchEmptySubtext}>Try searching for something else</Text>
+              </View>
+            ) : (
+              <View style={styles.searchResultsList}>
+                <Text style={styles.searchResultsTitle}>
+                  {filteredSearchResults.length} {filteredSearchResults.length === 1 ? 'result' : 'results'} found
+                </Text>
+                {filteredSearchResults.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    style={styles.searchResultItem}
+                    onPress={() => router.push({
+                      pathname: './menu-item-detail',
+                      params: {
+                        id: item.id,
+                        name: item.name,
+                        description: item.description,
+                        price: item.price.toString(),
+                        category: item.category,
+                        imageURL: item.imageURL,
+                        restaurantId: item.restaurantId,
+                        restaurantName: item.restaurantName,
+                        rating: item.rating?.toString() || '0',
+                        isAvailable: item.isAvailable.toString(),
+                      }
+                    })}
+                  >
+                    <Image source={{ uri: item.imageURL }} style={styles.searchResultImage} />
+                    <View style={styles.searchResultInfo}>
+                      <Text style={styles.searchResultName}>{item.name}</Text>
+                      <Text style={styles.searchResultRestaurant}>{item.restaurantName}</Text>
+                      <Text style={styles.searchResultDescription} numberOfLines={2}>{item.description}</Text>
+                      <View style={styles.searchResultBottom}>
+                        <Text style={styles.searchResultPrice}>${item.price.toFixed(2)}</Text>
+                        <Text style={styles.searchResultCategory}>{item.category}</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+          </View>
+        </>
+      )}
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 120 }}>
         <View style={styles.greetingCard}>
@@ -380,4 +484,119 @@ const styles = StyleSheet.create({
     
   navItem: { alignItems: 'center', justifyContent: 'center' },
   navIcon: { width: 26, height: 26, tintColor: '#fff', resizeMode: 'contain' },
+  searchBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 999,
+  },  searchResultsContainer: {
+    position: 'absolute',
+    top: 120,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#fff',
+    zIndex: 1000,
+    elevation: 5,
+  },
+  searchResultsScroll: {
+    flex: 1,
+  },
+  searchLoadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchLoadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
+  searchEmptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchEmptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#999',
+    marginBottom: 8,
+  },
+  searchEmptySubtext: {
+    fontSize: 14,
+    color: '#BBB',
+  },
+  searchResultsList: {
+    padding: 16,
+  },
+  searchResultsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A5D1A',
+    marginBottom: 16,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  searchResultImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+  },
+  searchResultInfo: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: 'space-between',
+  },
+  searchResultName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 4,
+  },
+  searchResultRestaurant: {
+    fontSize: 13,
+    color: '#1A5D1A',
+    marginBottom: 4,
+  },
+  searchResultDescription: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 8,
+  },
+  searchResultBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  searchResultPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A5D1A',
+  },
+  searchResultCategory: {
+    fontSize: 11,
+    color: '#fff',
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    textTransform: 'capitalize',
+  },
 });

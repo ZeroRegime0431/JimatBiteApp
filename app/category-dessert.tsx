@@ -54,6 +54,7 @@ export default function CategoryDessertScreen() {
   const [currentTime, setCurrentTime] = useState('');
   const [foodItems, setFoodItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const updateTime = () => {
@@ -128,6 +129,8 @@ export default function CategoryDessertScreen() {
           style={styles.searchInput}
           placeholder="Search"
           placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
         />
         <Pressable style={styles.filterButton}>
           <FilterSvg width={24} height={24} />
@@ -191,12 +194,22 @@ export default function CategoryDessertScreen() {
                 <ActivityIndicator size="large" color="#4CAF50" />
                 <Text style={styles.loadingText}>Loading desserts...</Text>
               </View>
-            ) : foodItems.length === 0 ? (
+            ) : foodItems.filter(item => 
+                searchQuery === '' || 
+                item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.restaurantName.toLowerCase().includes(searchQuery.toLowerCase())
+              ).length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>No desserts found</Text>
               </View>
             ) : (
-              foodItems.map((item) => (
+              foodItems.filter(item => 
+                searchQuery === '' || 
+                item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.restaurantName.toLowerCase().includes(searchQuery.toLowerCase())
+              ).map((item) => (
                 <Pressable 
                   key={item.id} 
                   style={styles.foodCard}

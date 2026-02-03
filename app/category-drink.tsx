@@ -54,6 +54,7 @@ export default function CategoryDrinkScreen() {
   const [currentTime, setCurrentTime] = useState('');
   const [foodItems, setFoodItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const updateTime = () => {
@@ -128,6 +129,8 @@ export default function CategoryDrinkScreen() {
           style={styles.searchInput}
           placeholder="Search"
           placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
         />
         <Pressable style={styles.filterButton}>
           <FilterSvg width={24} height={24} />
@@ -191,13 +194,23 @@ export default function CategoryDrinkScreen() {
                 <ActivityIndicator size="large" color="#1A5D1A" />
                 <Text style={styles.loadingText}>Loading drinks...</Text>
               </View>
-            ) : foodItems.length === 0 ? (
+            ) : foodItems.filter(item => 
+                searchQuery === '' || 
+                item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.restaurantName.toLowerCase().includes(searchQuery.toLowerCase())
+              ).length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>No drinks available</Text>
                 <Text style={styles.emptySubtext}>Check back later or add items via Populate button</Text>
               </View>
             ) : (
-              foodItems.map((item) => (
+              foodItems.filter(item => 
+                searchQuery === '' || 
+                item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.restaurantName.toLowerCase().includes(searchQuery.toLowerCase())
+              ).map((item) => (
                 <Pressable 
                   key={item.id} 
                   style={styles.foodCard}

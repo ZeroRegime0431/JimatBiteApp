@@ -54,6 +54,7 @@ export default function CategoryBlindBoxScreen() {
   const [currentTime, setCurrentTime] = useState('');
   const [foodItems, setFoodItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const updateTime = () => {
@@ -114,6 +115,8 @@ export default function CategoryBlindBoxScreen() {
           style={styles.searchInput}
           placeholder="Search"
           placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
         />
         <Pressable style={styles.filterButton}>
           <FilterSvg width={24} height={24} />
@@ -189,12 +192,22 @@ export default function CategoryBlindBoxScreen() {
                 <ActivityIndicator size="large" color="#4CAF50" />
                 <Text style={styles.loadingText}>Loading blind boxes...</Text>
               </View>
-            ) : foodItems.length === 0 ? (
+            ) : foodItems.filter(item => 
+                searchQuery === '' || 
+                item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.restaurantName.toLowerCase().includes(searchQuery.toLowerCase())
+              ).length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>No blind boxes found</Text>
               </View>
             ) : (
-              foodItems.map((item) => (
+              foodItems.filter(item => 
+                searchQuery === '' || 
+                item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                item.restaurantName.toLowerCase().includes(searchQuery.toLowerCase())
+              ).map((item) => (
                 <Pressable 
                   key={item.id} 
                   style={styles.foodCard}
