@@ -11,6 +11,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { db, storage } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
 import { addFavorite, getFavorites, getMenuItems, removeFavorite } from '../services/database';
+// import { registerForPushNotifications } from '../services/notifications'; // Commented out - requires development build
 import { MenuItem } from '../types';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
@@ -31,7 +32,6 @@ import LikeSvg from '../assets/HomePage/icons/like.svg';
 import LineSvg from '../assets/HomePage/icons/Line.svg';
 import MealSvg from '../assets/HomePage/icons/meal.svg';
 import ProfileSvg from '../assets/HomePage/icons/profile.svg';
-import RatingSvg from '../assets/HomePage/icons/rating.svg';
 import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SnacksSvg from '../assets/HomePage/icons/snacks.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
@@ -87,7 +87,16 @@ export default function HomePage() {
 
   useEffect(() => {
     loadUserFavorites();
+    // registerPushNotifications(); // Commented out - requires development build
   }, []);
+
+  // Commented out - Push notifications require development build (not supported in Expo Go SDK 53+)
+  // const registerPushNotifications = async () => {
+  //   const user = getCurrentUser();
+  //   if (user) {
+  //     await registerForPushNotifications(user.uid);
+  //   }
+  // };
 
   useEffect(() => {
     // Load all menu items when search starts
@@ -553,7 +562,7 @@ export default function HomePage() {
 
           <View style={styles.promoBanner}>
             <View style={{ flex: 1 }}>
-              <ThemedText type="defaultSemiBold" style={{ color: '#fff', fontSize: 18 }}>New Customer Code : BiteSave888</ThemedText>
+              <ThemedText type="defaultSemiBold" style={{ color: '#fff', fontSize: 18 }}>New Customer Code : Promo4377</ThemedText>
               <ThemedText style={{ color: '#fff', marginTop: 8, fontSize: 20, fontWeight: '700' }}>50% OFF</ThemedText>
             </View>
             {promoItem && (
@@ -586,21 +595,8 @@ export default function HomePage() {
               renderItem={({ item }) => {
                 const displayImageURL = imageURLs[item.id] || item.imageURL;
                 const isLiked = likedItems[item.id] || false;
-                const isRated = ratedItems[item.id] || false;
                 return (
                   <Pressable style={styles.recommendCard} onPress={() => handleItemPress(item)}>
-                    <View style={styles.ratingRow}>
-                      <Pressable 
-                        style={styles.ratingButton} 
-                        onPress={() => toggleRating(item.id)}
-                      >
-                        <RatingSvg 
-                          width={40} 
-                          height={40} 
-                          fill={isRated ? '#FFD700' : '#DDD'}
-                        />
-                      </Pressable>
-                    </View>
                     <View style={styles.recommendImageContainer}>
                       <ExpoImage 
                         source={{ uri: displayImageURL }} 
@@ -708,20 +704,18 @@ const styles = StyleSheet.create({
   promoImage: { width: 120, height: 90, marginLeft: 10, resizeMode: 'cover', borderRadius: 8 },
 
   recommendCard: { width: 260, bottom: 24 },
-  recommendImageContainer: { position: 'relative', width: '100%', height: 240 },
+  recommendImageContainer: { position: 'relative', width: '100%', height: 240, bottom: -12 },
   recommendImage: { width: '100%', height: 180, borderRadius: 10, resizeMode: 'cover' },
 
   likeButton: { position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 20, padding: 6, width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
   likeButtonActive: { backgroundColor: '#FF6B6B' },
 
   recommendInfo: { padding: 12 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  ratingButton: { marginRight: 4, bottom: -16 },
 
   recommendTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 0 },
-  recommendTitle: { fontSize: 14, color: '#333', flex: 1 },
-  distanceText: { fontSize: 12, color: '#888', marginLeft: 8, left: -24 },
-  recommendPrice: { marginTop: 2, color: '#1A5D1A', fontWeight: '700' },
+  recommendTitle: { fontSize: 14, color: '#333', flex: 1, bottom: 48 },
+  distanceText: { fontSize: 12, color: '#888', marginLeft: 8, left: -24, bottom: 48 },
+  recommendPrice: { marginTop: 2, color: '#1A5D1A', fontWeight: '700', bottom: 48 },
 
   bottomNav: { position: 'absolute', left: 12, right: 12, 
     bottom: 18, height: 64, backgroundColor: '#1A5D1A', 

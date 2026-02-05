@@ -1,6 +1,10 @@
+import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { db } from '../config/firebase';
+import { getCurrentUser } from '../services/auth';
 
 // SVG icons
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
@@ -12,6 +16,29 @@ import HomeSvg from '../assets/HomePage/icons/home.svg';
 import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
 
+// Configure notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+interface NotificationSettings {
+  generalNotification: boolean;
+  sound: boolean;
+  soundCall: boolean;
+  vibrate: boolean;
+  specialOffers: boolean;
+  payments: boolean;
+  promoDiscount: boolean;
+  cashback: boolean;
+  updatedAt: Date;
+}
+
 export default function NotificationSettingScreen() {
   const [generalNotification, setGeneralNotification] = useState(true);
   const [sound, setSound] = useState(true);
@@ -21,6 +48,139 @@ export default function NotificationSettingScreen() {
   const [payments, setPayments] = useState(false);
   const [promoDiscount, setPromoDiscount] = useState(false);
   const [cashback, setCashback] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadNotificationSettings();
+  }, []);
+
+  const loadNotificationSettings = async () => {
+    const user = getCurrentUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const settingsRef = doc(db, 'notificationSettings', user.uid);
+      const settingsSnap = await getDoc(settingsRef);
+
+      if (settingsSnap.exists()) {
+        const settings = settingsSnap.data() as NotificationSettings;
+        setGeneralNotification(settings.generalNotification ?? true);
+        setSound(settings.sound ?? true);
+        setSoundCall(settings.soundCall ?? true);
+        setVibrate(settings.vibrate ?? false);
+        setSpecialOffers(settings.specialOffers ?? false);
+        setPayments(settings.payments ?? false);
+        setPromoDiscount(settings.promoDiscount ?? false);
+        setCashback(settings.cashback ?? false);
+      }
+    } catch (error) {
+      console.error('Error loading notification settings:', error);
+    }
+    setLoading(false);
+  };
+
+  const saveNotificationSettings = async (settings: Partial<NotificationSettings>) => {
+    const user = getCurrentUser();
+    if (!user) return;
+
+    try {
+      const settingsRef = doc(db, 'notificationSettings', user.uid);
+      await setDoc(settingsRef, {
+        ...settings,
+        updatedAt: new Date(),
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error saving notification settings:', error);
+      Alert.alert('Error', 'Failed to save settings. Please try again.');
+    }
+  };
+
+  const requestNotificationPermissions = async () => {
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Please enable notifications in your device settings to receive updates.',
+          [{ text: 'OK', style: 'default' }]
+        );
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error requesting notification permissions:', error);
+      return false;
+    }
+  };
+
+  const handleGeneralNotificationChange = async (value: boolean) => {
+    if (value) {
+      const granted = await requestNotificationPermissions();
+      if (!granted) {
+        return;
+      }
+    }
+    
+    setGeneralNotification(value);
+    await saveNotificationSettings({ generalNotification: value });
+    
+    // Update notification handler based on settings
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: value,
+        shouldPlaySound: value && sound,
+        shouldSetBadge: value,
+        shouldShowBanner: value,
+        shouldShowList: value,
+      }),
+    });
+  };
+
+  const handleSoundChange = async (value: boolean) => {
+    setSound(value);
+    await saveNotificationSettings({ sound: value });
+  };
+
+  const handleSoundCallChange = async (value: boolean) => {
+    setSoundCall(value);
+    await saveNotificationSettings({ soundCall: value });
+  };
+
+  const handleVibrateChange = async (value: boolean) => {
+    setVibrate(value);
+    await saveNotificationSettings({ vibrate: value });
+  };
+
+  const handleSpecialOffersChange = async (value: boolean) => {
+    setSpecialOffers(value);
+    await saveNotificationSettings({ specialOffers: value });
+  };
+
+  const handlePaymentsChange = async (value: boolean) => {
+    setPayments(value);
+    await saveNotificationSettings({ payments: value });
+  };
+
+  const handlePromoDiscountChange = async (value: boolean) => {
+    setPromoDiscount(value);
+    await saveNotificationSettings({ promoDiscount: value });
+  };
+
+  const handleCashbackChange = async (value: boolean) => {
+    setCashback(value);
+    await saveNotificationSettings({ cashback: value });
+  };
 
   return (
     <View style={styles.container}>
@@ -45,9 +205,10 @@ export default function NotificationSettingScreen() {
             <Text style={styles.settingText}>General Notification</Text>
             <Switch
               value={generalNotification}
-              onValueChange={setGeneralNotification}
+              onValueChange={handleGeneralNotificationChange}
               trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
               thumbColor="#fff"
+              disabled={loading}
             />
           </View>
 
@@ -56,9 +217,10 @@ export default function NotificationSettingScreen() {
             <Text style={styles.settingText}>Sound</Text>
             <Switch
               value={sound}
-              onValueChange={setSound}
+              onValueChange={handleSoundChange}
               trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
               thumbColor="#fff"
+              disabled={loading}
             />
           </View>
 
@@ -67,9 +229,10 @@ export default function NotificationSettingScreen() {
             <Text style={styles.settingText}>Sound Call</Text>
             <Switch
               value={soundCall}
-              onValueChange={setSoundCall}
+              onValueChange={handleSoundCallChange}
               trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
               thumbColor="#fff"
+              disabled={loading}
             />
           </View>
 
@@ -78,9 +241,10 @@ export default function NotificationSettingScreen() {
             <Text style={styles.settingText}>Vibrate</Text>
             <Switch
               value={vibrate}
-              onValueChange={setVibrate}
+              onValueChange={handleVibrateChange}
               trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
               thumbColor="#fff"
+              disabled={loading}
             />
           </View>
 
@@ -89,9 +253,10 @@ export default function NotificationSettingScreen() {
             <Text style={styles.settingText}>Special Offers</Text>
             <Switch
               value={specialOffers}
-              onValueChange={setSpecialOffers}
+              onValueChange={handleSpecialOffersChange}
               trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
               thumbColor="#fff"
+              disabled={loading}
             />
           </View>
 
@@ -100,9 +265,10 @@ export default function NotificationSettingScreen() {
             <Text style={styles.settingText}>Payments</Text>
             <Switch
               value={payments}
-              onValueChange={setPayments}
+              onValueChange={handlePaymentsChange}
               trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
               thumbColor="#fff"
+              disabled={loading}
             />
           </View>
 
@@ -111,9 +277,10 @@ export default function NotificationSettingScreen() {
             <Text style={styles.settingText}>Promo and discount</Text>
             <Switch
               value={promoDiscount}
-              onValueChange={setPromoDiscount}
+              onValueChange={handlePromoDiscountChange}
               trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
               thumbColor="#fff"
+              disabled={loading}
             />
           </View>
 
@@ -122,9 +289,10 @@ export default function NotificationSettingScreen() {
             <Text style={styles.settingText}>Cashback</Text>
             <Switch
               value={cashback}
-              onValueChange={setCashback}
+              onValueChange={handleCashbackChange}
               trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
               thumbColor="#fff"
+              disabled={loading}
             />
           </View>
         </ScrollView>
