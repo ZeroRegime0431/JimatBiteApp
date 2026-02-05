@@ -1,9 +1,9 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { getDownloadURL, ref } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { db, storage } from '../config/firebase';
 import { MenuItem } from '../types';
 import CartSidebar from './cart-sidebar';
@@ -25,9 +25,14 @@ import SupportSvg from '../assets/HomePage/icons/support.svg';
 
 const { width } = Dimensions.get('window');
 
-export default function BestSellerScreen() {
+interface CategoryItems {
+  categoryName: string;
+  items: MenuItem[];
+}
+
+export default function RecommendScreen() {
   const [currentTime, setCurrentTime] = useState('');
-  const [bestSellers, setBestSellers] = useState<MenuItem[]>([]);
+  const [categoryItems, setCategoryItems] = useState<CategoryItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCartSidebar, setShowCartSidebar] = useState(false);
   const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
@@ -49,41 +54,60 @@ export default function BestSellerScreen() {
   }, []);
 
   useEffect(() => {
-    loadBestSellers();
+    loadRecommendations();
   }, []);
 
-  const loadBestSellers = async () => {
+  const loadRecommendations = async () => {
     setLoading(true);
     try {
-      const menuItemsRef = collection(db, 'menuItems');
-      const q = query(
-        menuItemsRef,
-        where('isAvailable', '==', true)
-      );
-      const querySnapshot = await getDocs(q);
-      
-      const items: MenuItem[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        // Filter by rating > 4.5 on client side to avoid composite index
-        if (data.rating && data.rating > 4.5) {
+      const categories = [
+        { key: 'meal', name: 'Meals' },
+        { key: 'vegan', name: 'Vegan' },
+        { key: 'drink', name: 'Drinks' },
+        { key: 'dessert', name: 'Desserts' },
+        { key: 'blindbox', name: 'Blind Box' },
+      ];
+
+      const allCategoryItems: CategoryItems[] = [];
+
+      for (const category of categories) {
+        const menuItemsRef = collection(db, 'menuItems');
+        const q = query(
+          menuItemsRef,
+          where('category', '==', category.key),
+          where('isAvailable', '==', true),
+          limit(5)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        const items: MenuItem[] = [];
+        
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
           items.push({
             ...data,
             createdAt: data.createdAt?.toDate(),
           } as MenuItem);
-        }
-      });
+        });
 
-      setBestSellers(items);
-      
-      // Load fresh image URLs
-      items.forEach(item => {
-        if (item.imageURL) {
-          getFreshImageURL(item.id, item.imageURL);
+        if (items.length > 0) {
+          allCategoryItems.push({
+            categoryName: category.name,
+            items: items,
+          });
+
+          // Load fresh image URLs
+          items.forEach(item => {
+            if (item.imageURL) {
+              getFreshImageURL(item.id, item.imageURL);
+            }
+          });
         }
-      });
+      }
+
+      setCategoryItems(allCategoryItems);
     } catch (error) {
-      console.error('Error loading best sellers:', error);
+      console.error('Error loading recommendations:', error);
     }
     setLoading(false);
   };
@@ -112,7 +136,7 @@ export default function BestSellerScreen() {
 
   const handleItemPress = (item: MenuItem) => {
     router.push({
-      pathname: '/menu-item-detail',
+      pathname: './menu-item-detail',
       params: {
         id: item.id,
         name: item.name,
@@ -122,7 +146,7 @@ export default function BestSellerScreen() {
         imageURL: item.imageURL,
         restaurantId: item.restaurantId,
         restaurantName: item.restaurantName,
-        rating: item.rating?.toString() || '',
+        rating: item.rating?.toString() || '0',
         isAvailable: item.isAvailable.toString(),
       },
     });
@@ -136,6 +160,17 @@ export default function BestSellerScreen() {
       case 'dessert': return '#FFB6C1';
       case 'drink': return '#87CEEB';
       default: return '#F5F5DC';
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'meal': return '🍽️';
+      case 'vegan': return '🥗';
+      case 'drink': return '🥤';
+      case 'dessert': return '🍰';
+      case 'blindbox': return '🎁';
+      default: return '✨';
     }
   };
 
@@ -162,73 +197,89 @@ export default function BestSellerScreen() {
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <BackArrowLeftSvg width={24} height={24} />
         </Pressable>
-        <Text style={styles.title}>Best Seller</Text>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Recommendations</Text>
+          <RecommendationSvg width={28} height={28} style={styles.titleIcon} />
+        </View>
         <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Subtitle */}
-        <Text style={styles.subtitle}>Discover our most popular dishes!</Text>
+        <Text style={styles.subtitle}>Discover the dishes recommended by the chef.</Text>
 
-        {/* Best Sellers Grid */}
+        {/* Recommendations by Category */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading...</Text>
+            <ActivityIndicator size="large" color="#1A5D1A" />
+            <Text style={styles.loadingText}>Loading recommendations...</Text>
           </View>
-        ) : bestSellers.length === 0 ? (
+        ) : categoryItems.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No best sellers yet!</Text>
-            <Text style={styles.emptySubtext}>Check back later for top-rated items</Text>
+            <Text style={styles.emptyText}>No recommendations yet!</Text>
+            <Text style={styles.emptySubtext}>Check back later for personalized suggestions</Text>
           </View>
         ) : (
-          <View style={styles.gridContainer}>
-            {bestSellers.map((item) => (
-              <Pressable
-                key={item.id}
-                style={styles.card}
-                onPress={() => handleItemPress(item)}
+          categoryItems.map((categoryGroup, index) => (
+            <View key={index} style={styles.categorySection}>
+              <Text style={styles.categoryTitle}>{categoryGroup.categoryName}</Text>
+              
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScroll}
               >
-                {/* Rating Badge */}
-                {item.rating && (
-                  <View style={styles.discountBadge}>
-                    <Text style={styles.discountText}>{item.rating.toFixed(1)}⭐</Text>
-                  </View>
-                )}
-
-                {/* Heart Button (Empty for best sellers) */}
-                <View style={styles.heartButton}>
-                  <Text style={styles.heartIcon}>🔥</Text>
-                </View>
-
-                {/* Item Image */}
-                <View style={styles.imageContainer}>
-                  {imageURLs[item.id] ? (
-                    <Image
-                      source={imageURLs[item.id]}
-                      style={styles.itemImage}
-                      contentFit="cover"
-                      transition={300}
-                    />
-                  ) : (
-                    <View style={[styles.placeholderImage, { backgroundColor: getCategoryColor(item.category) }]}>
-                      <Text style={styles.placeholderText}>{item.name.charAt(0)}</Text>
+                {categoryGroup.items.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    style={styles.card}
+                    onPress={() => handleItemPress(item)}
+                  >
+                    {/* Category Badge */}
+                    <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(item.category) }]}>
+                      <Text style={styles.categoryBadgeText}>{getCategoryIcon(item.category)}</Text>
                     </View>
-                  )}
-                </View>
 
-                {/* Price Badge */}
-                <View style={styles.priceBadge}>
-                  <Text style={styles.priceText}>${item.price.toFixed(2)}</Text>
-                </View>
+                    {/* Rating Badge */}
+                    {item.rating && item.rating > 0 && (
+                      <View style={styles.ratingBadge}>
+                        <Text style={styles.ratingText}>{item.rating.toFixed(1)}</Text>
+                      </View>
+                    )}
 
-                {/* Item Details */}
-                <View style={styles.itemDetails}>
-                  <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-                  <Text style={styles.itemDescription} numberOfLines={2}>{item.description}</Text>
-                </View>
-              </Pressable>
-            ))}
-          </View>
+                    {/* Item Image */}
+                    <View style={styles.imageContainer}>
+                      {imageURLs[item.id] ? (
+                        <Image
+                          source={imageURLs[item.id]}
+                          style={styles.itemImage}
+                          contentFit="cover"
+                          transition={300}
+                        />
+                      ) : (
+                        <View style={[styles.placeholderImage, { backgroundColor: getCategoryColor(item.category) }]}>
+                          <Text style={styles.placeholderText}>{item.name.charAt(0)}</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Item Details */}
+                    <View style={styles.itemDetails}>
+                      <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={styles.itemRestaurant} numberOfLines={1}>{item.restaurantName}</Text>
+                      <Text style={styles.itemDescription} numberOfLines={2}>{item.description}</Text>
+                      <View style={styles.priceRow}>
+                        <Text style={styles.priceText}>${item.price.toFixed(2)}</Text>
+                        <Pressable style={styles.addButton}>
+                          <Text style={styles.addButtonText}>+</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          ))
         )}
 
         <View style={{ height: 100 }} />
@@ -236,13 +287,13 @@ export default function BestSellerScreen() {
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <Pressable style={styles.navItem} onPress={() => router.push('/home-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.push('./home-page')}>
           <HomeSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navItem} onPress={() => router.push('./best-seller-page')}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('/favorites-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.push('./favorites-page')}>
           <FavouriteSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navItem} onPress={() => router.push('./recommend-page')}>
@@ -317,97 +368,120 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   title: {
     fontSize: 22,
     fontWeight: '700',
     color: '#2E7D32',
+    right: -28,
+  },
+  titleIcon: {
+    marginTop: 2,
+    right: -20,
   },
   placeholder: {
     width: 40,
   },
   scrollView: {
     flex: 1,
-    paddingHorizontal: 16,
+    backgroundColor: '#fff',
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 8,
+    fontSize: 15,
+    color: '#1A5D1A',
+    textAlign: 'center',
+    marginTop: 16,
     marginBottom: 20,
+    paddingHorizontal: 20,
+    fontWeight: '500',
   },
   loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    padding: 60,
     alignItems: 'center',
-    paddingVertical: 60,
+    justifyContent: 'center',
   },
   loadingText: {
+    marginTop: 16,
     fontSize: 16,
-    color: '#999',
+    color: '#666',
   },
   emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    padding: 60,
     alignItems: 'center',
-    paddingVertical: 60,
+    justifyContent: 'center',
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: '#999',
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
+    color: '#BBB',
+    textAlign: 'center',
   },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-    paddingBottom: 20,
+  categorySection: {
+    marginBottom: 24,
+  },
+  categoryTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A5D1A',
+    marginLeft: 16,
+    marginBottom: 12,
+  },
+  horizontalScroll: {
+    paddingHorizontal: 16,
+    gap: 12,
   },
   card: {
-    width: (width - 48) / 2,
+    width: 180,
     backgroundColor: '#fff',
     borderRadius: 16,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
     elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
-  discountBadge: {
+  categoryBadge: {
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: '#FFD700',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    zIndex: 1,
-  },
-  discountText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  heartButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1,
+    zIndex: 2,
     elevation: 2,
   },
-  heartIcon: {
-    fontSize: 16,
+  categoryBadgeText: {
+    fontSize: 18,
+  },
+  ratingBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#FF6347',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 2,
+    elevation: 2,
+  },
+  ratingText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
   },
   imageContainer: {
     width: '100%',
@@ -429,33 +503,48 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  priceBadge: {
-    position: 'absolute',
-    bottom: 80,
-    right: 8,
-    backgroundColor: '#FF6347',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  priceText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fff',
-  },
   itemDetails: {
     padding: 12,
   },
   itemName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#333',
+    marginBottom: 4,
+  },
+  itemRestaurant: {
+    fontSize: 12,
+    color: '#1A5D1A',
     marginBottom: 4,
   },
   itemDescription: {
     fontSize: 12,
-    color: '#999',
+    color: '#666',
+    marginBottom: 8,
     lineHeight: 16,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  priceText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A5D1A',
+  },
+  addButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#1A5D1A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
   },
   bottomNav: {
     position: 'absolute',

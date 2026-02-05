@@ -109,7 +109,7 @@ export default function CheckoutConfirmationScreen() {
         <Pressable style={styles.navItem} onPress={() => router.push('/favorites-page')}>
           <FavouriteSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem}>
+        <Pressable style={styles.navItem} onPress={() => router.push('./recommend-page')}>
           <RecommendationSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navItem}>
