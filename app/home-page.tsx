@@ -1,24 +1,22 @@
 import { auth } from '@/config/firebase';
 import { router } from 'expo-router';
+import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { getDownloadURL, ref } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { getMenuItems } from '../services/database';
+import { Image as ExpoImage } from 'expo-image';
+import { db, storage } from '../config/firebase';
+import { getCurrentUser } from '../services/auth';
+import { addFavorite, getFavorites, getMenuItems, removeFavorite } from '../services/database';
 import { MenuItem } from '../types';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
 import SideBar from './side-bar';
 
 // Declared SVG images (imported as components).
-import BurgerKingSvg from '../assets/HomePage/images/burgerking.svg';
-import CurrySvg from '../assets/HomePage/images/curry.svg';
-import HeyBakerySvg from '../assets/HomePage/images/heybakery.svg';
-import PizzaSvg from '../assets/HomePage/images/pizza.svg';
-import SushiSvg from '../assets/HomePage/images/sushi.svg';
-import ThaiTasteSvg from '../assets/HomePage/images/thaitaste.svg';
-import Western1Svg from '../assets/HomePage/images/western1.svg';
 
 // SVG icons
 import BakerySvg from '../assets/HomePage/icons/bakery.svg';
@@ -56,21 +54,6 @@ const topIcons = {
   profile: ProfileSvg,
 };
 
-
-
-
-const bestSellerCards = [
-  { id: '0', svg: CurrySvg, title: 'Curry', price: '$3.99' },
-  { id: '1', svg: HeyBakerySvg, title: 'Hey Bakery', price: '$4.99' },
-  { id: '2', svg: SushiSvg, title: 'Sushi', price: '$5.99' },
-  { id: '3', svg: Western1Svg, title: 'Western', price: '$6.99' },
-];
-
-const recommendCards = [
-  { id: '0', svg: ThaiTasteSvg, title: 'Thai Taste', price: '$7.99', distance: '4.1km' },
-  { id: '1', svg: BurgerKingSvg, title: 'Burger King', price: '$9.99', distance: '3.2km' },
-];
-
 export default function HomePage() {
   const [likedItems, setLikedItems] = useState<{ [key: string]: boolean }>({});
   const [ratedItems, setRatedItems] = useState<{ [key: string]: boolean }>({});
@@ -81,6 +64,11 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [allMenuItems, setAllMenuItems] = useState<MenuItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [bestSellers, setBestSellers] = useState<MenuItem[]>([]);
+  const [recommendations, setRecommendations] = useState<MenuItem[]>([]);
+  const [promoItem, setPromoItem] = useState<MenuItem | null>(null);
+  const [imageURLs, setImageURLs] = useState<{ [key: string]: string }>({});
+  const [dataLoading, setDataLoading] = useState(true);
 
   // Admin emails that can see the populate button
   const ADMIN_EMAILS = ['ali@example.com', 'hamza@example.com'];
@@ -91,6 +79,14 @@ export default function HomePage() {
     if (currentUser && currentUser.email) {
       setIsAdmin(ADMIN_EMAILS.includes(currentUser.email.toLowerCase()));
     }
+  }, []);
+
+  useEffect(() => {
+    loadHomeData();
+  }, []);
+
+  useEffect(() => {
+    loadUserFavorites();
   }, []);
 
   useEffect(() => {
@@ -116,6 +112,164 @@ export default function HomePage() {
     loadAllItems();
   }, [searchQuery]);
 
+  const loadHomeData = async () => {
+    setDataLoading(true);
+    try {
+      await Promise.all([
+        loadBestSellers(),
+        loadRecommendations(),
+        loadPromoItem(),
+      ]);
+    } catch (error) {
+      console.error('Error loading home data:', error);
+    }
+    setDataLoading(false);
+  };
+
+  const loadBestSellers = async () => {
+    try {
+      const menuItemsRef = collection(db, 'menuItems');
+      const q = query(
+        menuItemsRef,
+        where('isAvailable', '==', true),
+        limit(20)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const items: MenuItem[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        // Filter by rating > 4.5 on client side
+        if (data.rating && data.rating > 4.5) {
+          items.push({
+            ...data,
+            createdAt: data.createdAt?.toDate(),
+          } as MenuItem);
+        }
+      });
+
+      setBestSellers(items.slice(0, 10));
+      
+      // Load fresh image URLs
+      items.forEach(item => {
+        if (item.imageURL) {
+          getFreshImageURL(item.id, item.imageURL);
+        }
+      });
+    } catch (error) {
+      console.error('Error loading best sellers:', error);
+    }
+  };
+
+  const loadRecommendations = async () => {
+    try {
+      const categories = ['meal', 'vegan', 'drink', 'dessert', 'blindbox'];
+      const allItems: MenuItem[] = [];
+
+      for (const category of categories) {
+        const menuItemsRef = collection(db, 'menuItems');
+        const q = query(
+          menuItemsRef,
+          where('category', '==', category),
+          where('isAvailable', '==', true),
+          limit(2)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          allItems.push({
+            ...data,
+            createdAt: data.createdAt?.toDate(),
+          } as MenuItem);
+        });
+      }
+
+      setRecommendations(allItems.slice(0, 10));
+      
+      // Load fresh image URLs
+      allItems.forEach(item => {
+        if (item.imageURL) {
+          getFreshImageURL(item.id, item.imageURL);
+        }
+      });
+    } catch (error) {
+      console.error('Error loading recommendations:', error);
+    }
+  };
+
+  const loadPromoItem = async () => {
+    try {
+      const menuItemsRef = collection(db, 'menuItems');
+      const q = query(
+        menuItemsRef,
+        where('isAvailable', '==', true),
+        limit(5)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const items: MenuItem[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        items.push({
+          ...data,
+          createdAt: data.createdAt?.toDate(),
+        } as MenuItem);
+      });
+
+      if (items.length > 0) {
+        // Pick a random item
+        const randomItem = items[Math.floor(Math.random() * items.length)];
+        setPromoItem(randomItem);
+        if (randomItem.imageURL) {
+          getFreshImageURL(randomItem.id, randomItem.imageURL);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading promo item:', error);
+    }
+  };
+
+  const getFreshImageURL = async (itemId: string, imageURL: string) => {
+    try {
+      const urlObj = new URL(imageURL);
+      const pathMatch = urlObj.pathname.match(/\/o\/(.+?)(\?|$)/);
+      
+      if (pathMatch) {
+        const storagePath = decodeURIComponent(pathMatch[1]);
+        
+        try {
+          const storageRef = ref(storage, storagePath);
+          const freshURL = await getDownloadURL(storageRef);
+          setImageURLs(prev => ({ ...prev, [itemId]: freshURL }));
+        } catch (storageError) {
+          const publicURL = `https://firebasestorage.googleapis.com/v0/b/${storage.app.options.storageBucket}/o/${encodeURIComponent(storagePath)}?alt=media`;
+          setImageURLs(prev => ({ ...prev, [itemId]: publicURL }));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading image:', error);
+    }
+  };
+
+  const handleItemPress = (item: MenuItem) => {
+    router.push({
+      pathname: './menu-item-detail',
+      params: {
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        price: item.price.toString(),
+        category: item.category,
+        imageURL: item.imageURL,
+        restaurantId: item.restaurantId,
+        restaurantName: item.restaurantName,
+        rating: item.rating?.toString() || '0',
+        isAvailable: item.isAvailable.toString(),
+      }
+    });
+  };
+
   const getGreeting = () => {
     const currentHour = new Date().getHours();
     
@@ -138,6 +292,61 @@ export default function HomePage() {
   };
 
   const greeting = getGreeting();
+
+  const loadUserFavorites = async () => {
+    const user = getCurrentUser();
+    if (!user) return;
+
+    const result = await getFavorites(user.uid);
+    if (result.success && result.data) {
+      const favoritesMap: { [key: string]: boolean } = {};
+      result.data.forEach(item => {
+        favoritesMap[item.id] = true;
+      });
+      setLikedItems(favoritesMap);
+    }
+  };
+
+  const toggleFavorite = async (item: MenuItem, event?: any) => {
+    if (event) {
+      event.stopPropagation();
+    }
+
+    const user = getCurrentUser();
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    const isCurrentlyLiked = likedItems[item.id] || false;
+
+    // Optimistically update UI
+    setLikedItems(prev => ({ ...prev, [item.id]: !isCurrentlyLiked }));
+
+    try {
+      if (isCurrentlyLiked) {
+        // Remove from favorites
+        const result = await removeFavorite(user.uid, item.id);
+        if (!result.success) {
+          // Revert on error
+          setLikedItems(prev => ({ ...prev, [item.id]: isCurrentlyLiked }));
+          console.error('Failed to remove favorite');
+        }
+      } else {
+        // Add to favorites
+        const result = await addFavorite(user.uid, item);
+        if (!result.success) {
+          // Revert on error
+          setLikedItems(prev => ({ ...prev, [item.id]: isCurrentlyLiked }));
+          console.error('Failed to add favorite');
+        }
+      }
+    } catch (error) {
+      // Revert on error
+      setLikedItems(prev => ({ ...prev, [item.id]: isCurrentlyLiked }));
+      console.error('Error toggling favorite:', error);
+    }
+  };
 
   const toggleLike = (id: string) => {
     setLikedItems(prev => ({ ...prev, [id]: !prev[id] }));
@@ -307,87 +516,122 @@ export default function HomePage() {
 
           <View style={styles.sectionHeaderRow}>
             <ThemedText type="defaultSemiBold" style={{ color: '#000' }}>Best Seller</ThemedText>
-            <Pressable onPress={() => {}}>
+            <Pressable onPress={() => router.push('./best-seller-page')}>
               <ThemedText type="link">View All</ThemedText>
             </Pressable>
           </View>
 
-          <FlatList
-            horizontal
-            data={bestSellerCards}
-            keyExtractor={(i) => i.id}
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const SvgComp = (item as any).svg;
-              return (
-                <View style={styles.card}>
-                  <SvgComp width={220} height={220} />
-                  <ThemedText type="defaultSemiBold" style={styles.cardTitle}>{item.title}</ThemedText>
-                  <ThemedText style={styles.cardPrice}>{item.price}</ThemedText>
-                </View>
-              );
-            }}
-            ItemSeparatorComponent={() => <View style={{ width: 0 }} />}
-            contentContainerStyle={{ paddingVertical: 10 }}
-          />
+          {dataLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#1A5D1A" />
+            </View>
+          ) : (
+            <FlatList
+              horizontal
+              data={bestSellers}
+              keyExtractor={(item) => item.id}
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const displayImageURL = imageURLs[item.id] || item.imageURL;
+                return (
+                  <Pressable style={styles.card} onPress={() => handleItemPress(item)}>
+                    <ExpoImage 
+                      source={{ uri: displayImageURL }} 
+                      style={styles.cardImage}
+                      contentFit="cover"
+                      transition={300}
+                    />
+                    <ThemedText type="defaultSemiBold" style={styles.cardTitle}>{item.name}</ThemedText>
+                    <ThemedText style={styles.cardPrice}>${item.price.toFixed(2)}</ThemedText>
+                  </Pressable>
+                );
+              }}
+              ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+              contentContainerStyle={{ paddingVertical: 10 }}
+            />
+          )}
 
           <View style={styles.promoBanner}>
             <View style={{ flex: 1 }}>
               <ThemedText type="defaultSemiBold" style={{ color: '#fff', fontSize: 18 }}>New Customer Code : BiteSave888</ThemedText>
               <ThemedText style={{ color: '#fff', marginTop: 8, fontSize: 20, fontWeight: '700' }}>50% OFF</ThemedText>
             </View>
-            <PizzaSvg width={120} height={90}  />
+            {promoItem && (
+              <ExpoImage 
+                source={{ uri: imageURLs[promoItem.id] || promoItem.imageURL }} 
+                style={styles.promoImage}
+                contentFit="cover"
+                transition={300}
+              />
+            )}
           </View>
 
-          <ThemedText type="defaultSemiBold" style={{ marginTop: 14, color: '#000' }}>Recommend</ThemedText>
-          <FlatList
-            horizontal
-            data={recommendCards}
-            keyExtractor={(i) => i.id}
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const SvgComp = (item as any).svg;
-              const isLiked = likedItems[item.id] || false;
-              const isRated = ratedItems[item.id] || false;
-              return (
-                <View style={styles.recommendCard}>
-                  <View style={styles.ratingRow}>
-                    <Pressable 
-                      style={styles.ratingButton} 
-                      onPress={() => toggleRating(item.id)}
-                    >
-                      <RatingSvg 
-                        width={40} 
-                        height={40} 
-                        fill={isRated ? '#FFD700' : '#DDD'}
+          <View style={styles.sectionHeaderRow}>
+            <ThemedText type="defaultSemiBold" style={{ color: '#000' }}>Recommend</ThemedText>
+            <Pressable onPress={() => router.push('./recommend-page')}>
+              <ThemedText type="link">View All</ThemedText>
+            </Pressable>
+          </View>
+
+          {dataLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#1A5D1A" />
+            </View>
+          ) : (
+            <FlatList
+              horizontal
+              data={recommendations}
+              keyExtractor={(item) => item.id}
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const displayImageURL = imageURLs[item.id] || item.imageURL;
+                const isLiked = likedItems[item.id] || false;
+                const isRated = ratedItems[item.id] || false;
+                return (
+                  <Pressable style={styles.recommendCard} onPress={() => handleItemPress(item)}>
+                    <View style={styles.ratingRow}>
+                      <Pressable 
+                        style={styles.ratingButton} 
+                        onPress={() => toggleRating(item.id)}
+                      >
+                        <RatingSvg 
+                          width={40} 
+                          height={40} 
+                          fill={isRated ? '#FFD700' : '#DDD'}
+                        />
+                      </Pressable>
+                    </View>
+                    <View style={styles.recommendImageContainer}>
+                      <ExpoImage 
+                        source={{ uri: displayImageURL }} 
+                        style={styles.recommendImage}
+                        contentFit="cover"
+                        transition={300}
                       />
-                    </Pressable>
-                  </View>
-                  <View style={styles.recommendImageContainer}>
-                    <SvgComp width={240} height={240} />
-                    <Pressable 
-                      style={[styles.likeButton, isLiked && styles.likeButtonActive]} 
-                      onPress={() => toggleLike(item.id)}
-                    >
-                      <LikeSvg 
-                        width={24} 
-                        height={24} 
-                        fill={isLiked ? '#FF6B6B' : 'transparent'}
-                        stroke={isLiked ? '#FF6B6B' : '#fff'}
-                      />
-                    </Pressable>
-                  </View>
-                  <View style={styles.recommendTitleRow}>
-                    <ThemedText type="defaultSemiBold" style={styles.recommendTitle}>{item.title}</ThemedText>
-                    <ThemedText style={styles.distanceText}>{item.distance}</ThemedText>
-                  </View>
-                  <ThemedText style={styles.recommendPrice}>{item.price}</ThemedText>
-                </View>
-              );
-            }}
-            ItemSeparatorComponent={() => <View style={{ width: 0 }} />}
-            contentContainerStyle={{ paddingVertical: 10 }}
-          />
+                      <Pressable 
+                        style={[styles.likeButton, isLiked && styles.likeButtonActive]} 
+                        onPress={(e) => toggleFavorite(item, e)}
+                      >
+                        <LikeSvg 
+                          width={24} 
+                          height={24} 
+                          fill={isLiked ? '#FF6B6B' : 'transparent'}
+                          stroke={isLiked ? '#FF6B6B' : '#fff'}
+                        />
+                      </Pressable>
+                    </View>
+                    <View style={styles.recommendTitleRow}>
+                      <ThemedText type="defaultSemiBold" style={styles.recommendTitle}>{item.name}</ThemedText>
+                      <ThemedText style={styles.distanceText}>{item.restaurantName}</ThemedText>
+                    </View>
+                    <ThemedText style={styles.recommendPrice}>${item.price.toFixed(2)}</ThemedText>
+                  </Pressable>
+                );
+              }}
+              ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+              contentContainerStyle={{ paddingVertical: 10 }}
+            />
+          )}
         </View>
       </ScrollView>
 
@@ -452,6 +696,8 @@ const styles = StyleSheet.create({
   lineContainer: { marginTop: 16, alignItems: 'center' },
 
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18 },
+
+  loadingContainer: { padding: 20, alignItems: 'center', justifyContent: 'center' },
 
   card: { width: 160, alignItems: 'center' },
   cardImage: { width: 160, height: 140, borderRadius: 12, resizeMode: 'cover' },
