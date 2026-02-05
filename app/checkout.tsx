@@ -403,7 +403,7 @@ const incrementQuantity = (menuItemId: string) => {
         <Pressable style={styles.navButton} onPress={() => router.push('./recommend-page')}>
           <RecommendationSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navButton}>
+        <Pressable style={styles.navButton} onPress={() => router.push('./support-page')}>
           <SupportSvg width={28} height={28} />
         </Pressable>
       </View>

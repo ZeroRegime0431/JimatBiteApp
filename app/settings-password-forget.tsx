@@ -137,7 +137,7 @@ export default function ForgotPasswordScreen() {
         <Pressable style={styles.navItem} onPress={() => router.push('./recommend-page')}>
           <RecommendationSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem}>
+        <Pressable style={styles.navItem} onPress={() => router.push('./support-page')}>
           <SupportSvg width={28} height={28} />
         </Pressable>
       </View>

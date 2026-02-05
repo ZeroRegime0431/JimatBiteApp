@@ -162,7 +162,7 @@ export default function MyOrdersActiveScreen() {
         <Pressable style={styles.navIcon} onPress={() => router.push('./recommend-page')}>
           <RecommendationSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navIcon}>
+        <Pressable style={styles.navIcon} onPress={() => router.push('./support-page')}>
           <SupportSvg width={28} height={28} />
         </Pressable>
       </View>

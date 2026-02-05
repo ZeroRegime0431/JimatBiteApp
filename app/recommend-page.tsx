@@ -299,7 +299,7 @@ export default function RecommendScreen() {
         <Pressable style={styles.navItem} onPress={() => router.push('./recommend-page')}>
           <RecommendationSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem}>
+        <Pressable style={styles.navItem} onPress={() => router.push('./support-page')}>
           <SupportSvg width={28} height={28} />
         </Pressable>
       </View>
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#2E7D32',
+    color: '#1A5D1A',
     right: -28,
   },
   titleIcon: {
