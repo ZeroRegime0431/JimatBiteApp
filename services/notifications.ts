@@ -1,84 +1,32 @@
 // Push notification service
-import * as Notifications from 'expo-notifications';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { Platform } from 'react-native';
+// import * as Notifications from 'expo-notifications';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 /**
  * Register device for push notifications and save token to Firestore
  */
 export const registerForPushNotifications = async (
-  userId: string
+  _userId: string
 ): Promise<{ success: boolean; token?: string; error?: string }> => {
-  try {
-    // Check if running on physical device (required for push notifications)
-    if (!Platform.isTV && (Platform.OS === 'android' || Platform.OS === 'ios')) {
-      // Request permissions
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-
-      if (finalStatus !== 'granted') {
-        return { 
-          success: false, 
-          error: 'Permission not granted for push notifications' 
-        };
-      }
-
-      // Get push token
-      const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId: '1b05a6be-def3-4b5e-909a-8540db1582b2',
-      });
-      const token = tokenData.data;
-
-      // Save token to Firestore
-      const tokenRef = doc(db, 'pushTokens', userId);
-      await setDoc(tokenRef, {
-        token,
-        userId,
-        platform: Platform.OS,
-        updatedAt: new Date(),
-      });
-
-      return { success: true, token };
-    }
-
-    return { success: false, error: 'Not a valid platform for push notifications' };
-  } catch (error: any) {
-    console.error('Error registering for push notifications:', error);
-    return { success: false, error: error.message };
-  }
+  return {
+    success: false,
+    error: 'Push notifications disabled in Expo Go',
+  };
 };
 
 /**
  * Send a local notification (appears on device immediately)
  */
 export const sendLocalNotification = async (
-  title: string,
-  body: string,
-  data?: any
+  _title: string,
+  _body: string,
+  _data?: any
 ): Promise<{ success: boolean; notificationId?: string; error?: string }> => {
-  try {
-    const notificationId = await Notifications.scheduleNotificationAsync({
-      content: {
-        title,
-        body,
-        data: data || {},
-        sound: true,
-        badge: 1,
-      },
-      trigger: null, // Show immediately
-    });
-
-    return { success: true, notificationId };
-  } catch (error: any) {
-    console.error('Error sending local notification:', error);
-    return { success: false, error: error.message };
-  }
+  return {
+    success: false,
+    error: 'Local notifications disabled in Expo Go',
+  };
 };
 
 /**

@@ -40,6 +40,17 @@ export default function MerchantPage() {
   const [monthlySales, setMonthlySales] = useState(35420.80);
   const [totalOrders, setTotalOrders] = useState(0);
 
+  const salesTrend = [
+    { label: 'Mon', value: 420 },
+    { label: 'Tue', value: 560 },
+    { label: 'Wed', value: 380 },
+    { label: 'Thu', value: 690 },
+    { label: 'Fri', value: 760 },
+    { label: 'Sat', value: 920 },
+    { label: 'Sun', value: 640 },
+  ];
+  const maxSalesValue = Math.max(...salesTrend.map(item => item.value));
+
   useEffect(() => {
     loadOrders();
   }, []);
@@ -197,6 +208,38 @@ export default function MerchantPage() {
             <ThemedText style={styles.statLabel}>Total Orders</ThemedText>
             <ThemedText style={styles.statValue}>{totalOrders}</ThemedText>
           </View>
+        </View>
+
+        <View style={styles.chartCard}>
+          <View style={styles.chartHeader}>
+            <ThemedText style={styles.chartTitle}>Weekly Sales Trend</ThemedText>
+            <ThemedText style={styles.chartSubtitle}>Dummy data</ThemedText>
+          </View>
+          <View style={styles.chartArea}>
+            {salesTrend.map((item) => {
+              const barHeight = Math.max(8, (item.value / maxSalesValue) * 120);
+              return (
+                <View key={item.label} style={styles.chartItem}>
+                  <View style={styles.chartBarWrapper}>
+                    <View style={[styles.chartBar, { height: barHeight }]} />
+                  </View>
+                  <ThemedText style={styles.chartLabel}>{item.label}</ThemedText>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.addItemSection}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionTitle}>Add New Menu Item</ThemedText>
+          </View>
+          <Pressable
+            style={styles.addItemButton}
+            onPress={() => router.push('./add-menu-item')}
+          >
+            <ThemedText style={styles.addItemButtonText}>Add Item</ThemedText>
+          </Pressable>
         </View>
 
         {loading ? (
@@ -371,6 +414,55 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A5D1A',
   },
+  chartCard: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 14,
+    borderLeftWidth: 4,
+    borderLeftColor: '#1A5D1A',
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  chartTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+  },
+  chartSubtitle: {
+    fontSize: 12,
+    color: '#777',
+  },
+  chartArea: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    height: 140,
+  },
+  chartItem: {
+    alignItems: 'center',
+    width: 32,
+  },
+  chartBarWrapper: {
+    width: 16,
+    height: 120,
+    justifyContent: 'flex-end',
+  },
+  chartBar: {
+    width: 16,
+    borderRadius: 8,
+    backgroundColor: '#1A5D1A',
+  },
+  chartLabel: {
+    marginTop: 6,
+    fontSize: 10,
+    color: '#666',
+  },
   loadingContainer: {
     padding: 40,
     alignItems: 'center',
@@ -382,6 +474,21 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: 16,
     marginBottom: 24,
+  },
+  addItemSection: {
+    paddingHorizontal: 16,
+    marginBottom: 24,
+  },
+  addItemButton: {
+    backgroundColor: '#1A5D1A',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  addItemButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   sectionHeader: {
     flexDirection: 'row',

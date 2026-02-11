@@ -1,4 +1,4 @@
-import * as Notifications from 'expo-notifications';
+// import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
@@ -16,16 +16,16 @@ import HomeSvg from '../assets/HomePage/icons/home.svg';
 import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
 
-// Configure notification handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Configure notification handler (disabled in Expo Go)
+// Notifications.setNotificationHandler({
+//   handleNotification: async () => ({
+//     shouldShowAlert: true,
+//     shouldPlaySound: true,
+//     shouldSetBadge: false,
+//     shouldShowBanner: true,
+//     shouldShowList: true,
+//   }),
+// });
 
 interface NotificationSettings {
   generalNotification: boolean;
@@ -99,29 +99,7 @@ export default function NotificationSettingScreen() {
   };
 
   const requestNotificationPermissions = async () => {
-    try {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-
-      if (finalStatus !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Please enable notifications in your device settings to receive updates.',
-          [{ text: 'OK', style: 'default' }]
-        );
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error requesting notification permissions:', error);
-      return false;
-    }
+    return true;
   };
 
   const handleGeneralNotificationChange = async (value: boolean) => {
@@ -135,16 +113,7 @@ export default function NotificationSettingScreen() {
     setGeneralNotification(value);
     await saveNotificationSettings({ generalNotification: value });
     
-    // Update notification handler based on settings
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: value,
-        shouldPlaySound: value && sound,
-        shouldSetBadge: value,
-        shouldShowBanner: value,
-        shouldShowList: value,
-      }),
-    });
+    // Notifications handler disabled in Expo Go
   };
 
   const handleSoundChange = async (value: boolean) => {

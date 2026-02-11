@@ -1,4 +1,3 @@
-import { auth } from '@/config/firebase';
 import { router } from 'expo-router';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { getDownloadURL, ref } from 'firebase/storage';
@@ -61,7 +60,6 @@ export default function HomePage() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [cartVisible, setCartVisible] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [allMenuItems, setAllMenuItems] = useState<MenuItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -70,17 +68,6 @@ export default function HomePage() {
   const [promoItem, setPromoItem] = useState<MenuItem | null>(null);
   const [imageURLs, setImageURLs] = useState<{ [key: string]: string }>({});
   const [dataLoading, setDataLoading] = useState(true);
-
-  // Admin emails that can see the populate button
-  const ADMIN_EMAILS = ['ali@example.com', 'hamza@example.com'];
-
-  useEffect(() => {
-    // Check if current user is an admin
-    const currentUser = auth.currentUser;
-    if (currentUser && currentUser.email) {
-      setIsAdmin(ADMIN_EMAILS.includes(currentUser.email.toLowerCase()));
-    }
-  }, []);
 
   useEffect(() => {
     loadHomeData();
@@ -475,22 +462,6 @@ export default function HomePage() {
               <ThemedText type="title" style={styles.greetingTitle}>{greeting.title}</ThemedText>
               <ThemedText type="subtitle" style={styles.greetingSub}>{greeting.subtitle}</ThemedText>
             </View>
-            {isAdmin && (
-              <View style={styles.adminButtonsContainer}>
-                <Pressable 
-                  style={styles.addItemButton}
-                  onPress={() => router.push('./add-menu-item')}
-                >
-                  <ThemedText style={styles.addItemButtonText}>➕ Add Item</ThemedText>
-                </Pressable>
-                <Pressable 
-                  style={styles.populateButton}
-                  onPress={() => router.push('./populate-menu')}
-                >
-                  <ThemedText style={styles.populateButtonText}>📝 Populate</ThemedText>
-                </Pressable>
-              </View>
-            )}
           </View>
 
           <View style={styles.categoriesRow}>
@@ -686,11 +657,6 @@ const styles = StyleSheet.create({
   greetingTextContainer: { flex: 1 },
   greetingTitle: { color: '#1A5D1A', fontSize: 28, fontWeight: 'bold' },
   greetingSub: { color: '#7a7a7a', marginTop: 4, fontSize: 12 },
-  adminButtonsContainer: { flexDirection: 'row', gap: 8, marginLeft: 10 },
-  addItemButton: { backgroundColor: '#2E7D32', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  addItemButtonText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  populateButton: { backgroundColor: '#1A5D1A', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  populateButtonText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 
   categoriesRow: { flexDirection: 'row', marginTop: 54, justifyContent: 'space-between' },
   categoryItem: { alignItems: 'center', width: (width - 36) / 5 },

@@ -4,7 +4,7 @@ import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getCurrentUser } from '../services/auth';
 import { createOrder, getCart, getUserPaymentMethods, saveCart } from '../services/database';
-import { checkGeneralNotifications, sendOrderConfirmationNotification } from '../services/notifications';
+// import { checkGeneralNotifications, sendOrderConfirmationNotification } from '../services/notifications';
 import type { CartItem } from '../types';
 
 // SVG icons
@@ -183,15 +183,7 @@ export default function CheckoutPaymentScreen() {
       if (orderResult.success) {
         console.log('Order created successfully:', orderResult.orderId);
         
-        // Send order confirmation notification
-        const notificationsEnabled = await checkGeneralNotifications(user.uid);
-        if (notificationsEnabled) {
-          await sendOrderConfirmationNotification(
-            orderResult.orderId!,
-            total,
-            orderItems.reduce((sum, item) => sum + item.quantity, 0)
-          );
-        }
+        // Notifications disabled in Expo Go
         
         // Clear the cart after successful order
         await saveCart(user.uid, {
