@@ -208,6 +208,31 @@ export const getUserOrders = async (
   }
 };
 
+export const getOrderById = async (
+  orderId: string
+): Promise<{ success: boolean; data?: Order; error?: string }> => {
+  try {
+    const orderRef = doc(db, 'orders', orderId);
+    const orderSnap = await getDoc(orderRef);
+    
+    if (orderSnap.exists()) {
+      const data = orderSnap.data();
+      const order: Order = {
+        ...data,
+        orderDate: data.orderDate?.toDate(),
+        estimatedDeliveryTime: data.estimatedDeliveryTime?.toDate(),
+        actualDeliveryTime: data.actualDeliveryTime?.toDate(),
+      } as Order;
+      return { success: true, data: order };
+    } else {
+      return { success: false, error: 'Order not found' };
+    }
+  } catch (error: any) {
+    console.error('Error getting order by ID:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 export const updateOrderStatus = async (
   orderId: string, 
   status: Order['status']

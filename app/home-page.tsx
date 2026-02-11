@@ -36,6 +36,7 @@ import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SnacksSvg from '../assets/HomePage/icons/snacks.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
 import VeganSvg from '../assets/HomePage/icons/vegan.svg';
+import DashboardSvg from '../assets/MerchantPage/icons/dashboard.svg';
 
 const { width } = Dimensions.get('window');
 
@@ -631,6 +632,14 @@ export default function HomePage() {
         </View>
       </ScrollView>
 
+      {/* Dashboard Floating Button */}
+      <Pressable 
+        style={styles.dashboardButton} 
+        onPress={() => router.push('./merchant-page')}
+      >
+        <DashboardSvg width={32} height={32} />
+      </Pressable>
+
       <View style={styles.bottomNav}>
         <Pressable style={styles.navItem} onPress={() => {}}>
           <HomeSvg width={28} height={28} />
@@ -717,6 +726,22 @@ const styles = StyleSheet.create({
   distanceText: { fontSize: 12, color: '#888', marginLeft: 8, left: -24, bottom: 48 },
   recommendPrice: { marginTop: 2, color: '#1A5D1A', fontWeight: '700', bottom: 48 },
 
+  dashboardButton: {
+    position: 'absolute',
+    right: 20,
+    bottom: 94,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#1A5D1A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   bottomNav: { position: 'absolute', left: 12, right: 12, 
     bottom: 18, height: 64, backgroundColor: '#1A5D1A', 
     borderRadius: 34, flexDirection: 'row', justifyContent: 'space-around', 

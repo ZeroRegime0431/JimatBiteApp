@@ -17,6 +17,7 @@ import FavouriteSvg from '../assets/HomePage/icons/favourite.svg';
 import HomeSvg from '../assets/HomePage/icons/home.svg';
 import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
+import DashboardSvg from '../assets/MerchantPage/icons/dashboard.svg';
 
 // Arrow icon
 import RedArrowRightSvg from '../assets/Settings/icons/redarrowright.svg';
@@ -103,6 +104,14 @@ export default function SupportScreen() {
           </View>
         </Pressable>
       </ScrollView>
+
+      {/* Dashboard Floating Button */}
+      <Pressable 
+        style={styles.dashboardButton} 
+        onPress={() => router.push('./merchant-page')}
+      >
+        <DashboardSvg width={32} height={32} />
+      </Pressable>
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
@@ -234,6 +243,22 @@ const styles = StyleSheet.create({
   optionSubtitle: {
     fontSize: 13,
     color: '#666',
+  },
+  dashboardButton: {
+    position: 'absolute',
+    right: 20,
+    bottom: 94,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#1A5D1A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   bottomNav: {
     position: 'absolute',

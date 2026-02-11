@@ -8,7 +8,7 @@ import QRCode from 'react-native-qrcode-svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 import { storage } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
-import { getUserOrders, updateOrderStatus } from '../services/database';
+import { getOrderById, getUserOrders, updateOrderStatus } from '../services/database';
 import type { Order } from '../types';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -70,25 +70,43 @@ export default function OrderDetailsScreen() {
 
   const loadOrderDetails = async () => {
     setLoading(true);
-    const user = getCurrentUser();
-    if (user) {
-      const result = await getUserOrders(user.uid);
-      if (result.success && result.data) {
-        const foundOrder = result.data.find(o => o.id === orderId);
-        setOrder(foundOrder || null);
-        
-        // Load fresh image URLs for items
-        if (foundOrder) {
-          const urls: {[key: string]: string} = {};
-          for (const item of foundOrder.items) {
-            if (item.imageURL) {
-              urls[item.menuItemId] = await getFreshImageURL(item.imageURL);
+    
+    // First try to get the order by ID directly (works for all orders)
+    const result = await getOrderById(orderId as string);
+    
+    if (result.success && result.data) {
+      setOrder(result.data);
+      
+      // Load fresh image URLs for items
+      const urls: {[key: string]: string} = {};
+      for (const item of result.data.items) {
+        if (item.imageURL) {
+          urls[item.menuItemId] = await getFreshImageURL(item.imageURL);
+        }
+      }
+      setImageURLs(urls);
+    } else {
+      // Fallback: try to fetch from user's orders (for backward compatibility)
+      const user = getCurrentUser();
+      if (user) {
+        const userOrdersResult = await getUserOrders(user.uid);
+        if (userOrdersResult.success && userOrdersResult.data) {
+          const foundOrder = userOrdersResult.data.find(o => o.id === orderId);
+          setOrder(foundOrder || null);
+          
+          if (foundOrder) {
+            const urls: {[key: string]: string} = {};
+            for (const item of foundOrder.items) {
+              if (item.imageURL) {
+                urls[item.menuItemId] = await getFreshImageURL(item.imageURL);
+              }
             }
+            setImageURLs(urls);
           }
-          setImageURLs(urls);
         }
       }
     }
+    
     setLoading(false);
   };
 
