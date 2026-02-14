@@ -35,6 +35,7 @@ export default function FavoritesScreen() {
   const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
   const [imageURLs, setImageURLs] = useState<{ [key: string]: string }>({});
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -52,6 +53,12 @@ export default function FavoritesScreen() {
 
   useEffect(() => {
     loadFavorites();
+  }, []);
+
+  useEffect(() => {
+    const user = getCurrentUser();
+    const email = user?.email?.toLowerCase().trim();
+    setIsAdmin(email === 'ali@example.com');
   }, []);
 
   const loadFavorites = async () => {
@@ -228,13 +235,15 @@ export default function FavoritesScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Dashboard Floating Button */}
-      <Pressable 
-        style={styles.dashboardButton} 
-        onPress={() => router.push('./merchant-page')}
-      >
-        <DashboardSvg width={32} height={32} />
-      </Pressable>
+      {/* Dashboard Floating Button (Admin only) */}
+      {isAdmin && (
+        <Pressable
+          style={styles.dashboardButton}
+          onPress={() => router.push('./merchant-page')}
+        >
+          <DashboardSvg width={32} height={32} />
+        </Pressable>
+      )}
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>

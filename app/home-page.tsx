@@ -60,6 +60,7 @@ export default function HomePage() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [cartVisible, setCartVisible] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [allMenuItems, setAllMenuItems] = useState<MenuItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -71,6 +72,12 @@ export default function HomePage() {
 
   useEffect(() => {
     loadHomeData();
+  }, []);
+
+  useEffect(() => {
+    const user = getCurrentUser();
+    const email = user?.email?.toLowerCase().trim();
+    setIsAdmin(email === 'ali@example.com');
   }, []);
 
   useEffect(() => {
@@ -603,13 +610,15 @@ export default function HomePage() {
         </View>
       </ScrollView>
 
-      {/* Dashboard Floating Button */}
-      <Pressable 
-        style={styles.dashboardButton} 
-        onPress={() => router.push('./merchant-page')}
-      >
-        <DashboardSvg width={32} height={32} />
-      </Pressable>
+      {/* Dashboard Floating Button (Admin only) */}
+      {isAdmin && (
+        <Pressable
+          style={styles.dashboardButton}
+          onPress={() => router.push('./merchant-page')}
+        >
+          <DashboardSvg width={32} height={32} />
+        </Pressable>
+      )}
 
       <View style={styles.bottomNav}>
         <Pressable style={styles.navItem} onPress={() => {}}>

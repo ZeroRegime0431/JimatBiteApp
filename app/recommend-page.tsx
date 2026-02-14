@@ -5,6 +5,7 @@ import { getDownloadURL, ref } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { db, storage } from '../config/firebase';
+import { getCurrentUser } from '../services/auth';
 import { MenuItem } from '../types';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
@@ -39,6 +40,7 @@ export default function RecommendScreen() {
   const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
   const [imageURLs, setImageURLs] = useState<{ [key: string]: string }>({});
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -56,6 +58,12 @@ export default function RecommendScreen() {
 
   useEffect(() => {
     loadRecommendations();
+  }, []);
+
+  useEffect(() => {
+    const user = getCurrentUser();
+    const email = user?.email?.toLowerCase().trim();
+    setIsAdmin(email === 'ali@example.com');
   }, []);
 
   const loadRecommendations = async () => {
@@ -286,13 +294,15 @@ export default function RecommendScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Dashboard Floating Button */}
-      <Pressable 
-        style={styles.dashboardButton} 
-        onPress={() => router.push('./merchant-page')}
-      >
-        <DashboardSvg width={32} height={32} />
-      </Pressable>
+      {/* Dashboard Floating Button (Admin only) */}
+      {isAdmin && (
+        <Pressable
+          style={styles.dashboardButton}
+          onPress={() => router.push('./merchant-page')}
+        >
+          <DashboardSvg width={32} height={32} />
+        </Pressable>
+      )}
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>

@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
+import { getCurrentUser } from '../services/auth';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
 import SideBar from './side-bar';
@@ -29,6 +30,7 @@ export default function SupportScreen() {
   const [showCartSidebar, setShowCartSidebar] = useState(false);
   const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   React.useEffect(() => {
     const updateTime = () => {
@@ -42,6 +44,12 @@ export default function SupportScreen() {
     const interval = setInterval(updateTime, 1000);
     
     return () => clearInterval(interval);
+  }, []);
+
+  React.useEffect(() => {
+    const user = getCurrentUser();
+    const email = user?.email?.toLowerCase().trim();
+    setIsAdmin(email === 'ali@example.com');
   }, []);
 
   return (
@@ -105,13 +113,15 @@ export default function SupportScreen() {
         </Pressable>
       </ScrollView>
 
-      {/* Dashboard Floating Button */}
-      <Pressable 
-        style={styles.dashboardButton} 
-        onPress={() => router.push('./merchant-page')}
-      >
-        <DashboardSvg width={32} height={32} />
-      </Pressable>
+      {/* Dashboard Floating Button (Admin only) */}
+      {isAdmin && (
+        <Pressable
+          style={styles.dashboardButton}
+          onPress={() => router.push('./merchant-page')}
+        >
+          <DashboardSvg width={32} height={32} />
+        </Pressable>
+      )}
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
