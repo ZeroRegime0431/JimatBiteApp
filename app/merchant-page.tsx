@@ -18,6 +18,7 @@ import FavouriteSvg from '../assets/HomePage/icons/favourite.svg';
 import HomeSvg from '../assets/HomePage/icons/home.svg';
 import ProfileSvg from '../assets/HomePage/icons/profile.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
+import ArrowRightSvg from '../assets/Settings/icons/redarrowright.svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 
 const { width } = Dimensions.get('window');
@@ -27,6 +28,11 @@ export default function MerchantPage() {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [cartVisible, setCartVisible] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // Dropdown states for order categories
+  const [newOrdersExpanded, setNewOrdersExpanded] = useState(true);
+  const [completedOrdersExpanded, setCompletedOrdersExpanded] = useState(true);
+  const [cancelledOrdersExpanded, setCancelledOrdersExpanded] = useState(true);
   
   // Orders state
   const [newOrders, setNewOrders] = useState<Order[]>([]);
@@ -251,52 +257,79 @@ export default function MerchantPage() {
           <>
             {/* New Orders Section */}
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
+              <Pressable 
+                style={styles.sectionHeader}
+                onPress={() => setNewOrdersExpanded(!newOrdersExpanded)}
+              >
                 <ThemedText style={styles.sectionTitle}>New Orders</ThemedText>
                 <View style={[styles.badge, { backgroundColor: '#FFA500' }]}>
                   <Text style={styles.badgeText}>{newOrders.length}</Text>
                 </View>
-              </View>
-              {newOrders.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <ThemedText style={styles.emptyText}>No new orders</ThemedText>
+                <View style={{ flex: 1 }} />
+                <View style={[styles.arrowIcon, { transform: [{ rotate: newOrdersExpanded ? '90deg' : '0deg' }] }]}>
+                  <ArrowRightSvg width={20} height={20} />
                 </View>
-              ) : (
-                newOrders.map(order => renderOrderCard(order, '#FFA500'))
+              </Pressable>
+              {newOrdersExpanded && (
+                newOrders.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <ThemedText style={styles.emptyText}>No new orders</ThemedText>
+                  </View>
+                ) : (
+                  newOrders.map(order => renderOrderCard(order, '#FFA500'))
+                )
               )}
             </View>
 
             {/* Completed Orders Section */}
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
+              <Pressable 
+                style={styles.sectionHeader}
+                onPress={() => setCompletedOrdersExpanded(!completedOrdersExpanded)}
+              >
                 <ThemedText style={styles.sectionTitle}>Completed Orders</ThemedText>
                 <View style={[styles.badge, { backgroundColor: '#1A5D1A' }]}>
                   <Text style={styles.badgeText}>{completedOrders.length}</Text>
                 </View>
-              </View>
-              {completedOrders.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <ThemedText style={styles.emptyText}>No completed orders</ThemedText>
+                <View style={{ flex: 1 }} />
+                <View style={[styles.arrowIcon, { transform: [{ rotate: completedOrdersExpanded ? '90deg' : '0deg' }] }]}>
+                  <ArrowRightSvg width={20} height={20} />
                 </View>
-              ) : (
-                completedOrders.map(order => renderOrderCard(order, '#1A5D1A'))
+              </Pressable>
+              {completedOrdersExpanded && (
+                completedOrders.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <ThemedText style={styles.emptyText}>No completed orders</ThemedText>
+                  </View>
+                ) : (
+                  completedOrders.map(order => renderOrderCard(order, '#1A5D1A'))
+                )
               )}
             </View>
 
             {/* Cancelled Orders Section */}
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
+              <Pressable 
+                style={styles.sectionHeader}
+                onPress={() => setCancelledOrdersExpanded(!cancelledOrdersExpanded)}
+              >
                 <ThemedText style={styles.sectionTitle}>Cancelled Orders</ThemedText>
                 <View style={[styles.badge, { backgroundColor: '#DC143C' }]}>
                   <Text style={styles.badgeText}>{cancelledOrders.length}</Text>
                 </View>
-              </View>
-              {cancelledOrders.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <ThemedText style={styles.emptyText}>No cancelled orders</ThemedText>
+                <View style={{ flex: 1 }} />
+                <View style={[styles.arrowIcon, { transform: [{ rotate: cancelledOrdersExpanded ? '90deg' : '0deg' }] }]}>
+                  <ArrowRightSvg width={20} height={20} />
                 </View>
-              ) : (
-                cancelledOrders.map(order => renderOrderCard(order, '#DC143C'))
+              </Pressable>
+              {cancelledOrdersExpanded && (
+                cancelledOrders.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <ThemedText style={styles.emptyText}>No cancelled orders</ThemedText>
+                  </View>
+                ) : (
+                  cancelledOrders.map(order => renderOrderCard(order, '#DC143C'))
+                )
               )}
             </View>
           </>
@@ -494,6 +527,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  arrowIcon: {
+    marginLeft: 8,
   },
   sectionTitle: {
     fontSize: 18,

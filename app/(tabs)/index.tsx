@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     color: "#245B2A",
   },
   signupButton: {
-    backgroundColor: "#FFE7C6", // beige
+    backgroundColor: "#FFF952", // bright yellow
     paddingVertical: 14,
     borderRadius: 999,
     alignItems: "center",
