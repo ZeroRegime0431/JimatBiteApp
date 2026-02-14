@@ -246,6 +246,12 @@ export default function MerchantPage() {
           >
             <ThemedText style={styles.addItemButtonText}>Add Item</ThemedText>
           </Pressable>
+          <Pressable
+            style={styles.manageItemsButton}
+            onPress={() => router.push('./merchant-page-menuitem')}
+          >
+            <ThemedText style={styles.manageItemsButtonText}>View Menu Items</ThemedText>
+          </Pressable>
         </View>
 
         {loading ? (
@@ -521,6 +527,20 @@ const styles = StyleSheet.create({
   addItemButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '700',
+  },
+  manageItemsButton: {
+    marginTop: 10,
+    backgroundColor: '#1A5D1A',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1A5D1A',
+  },
+  manageItemsButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
     fontWeight: '700',
   },
   sectionHeader: {
