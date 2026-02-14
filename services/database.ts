@@ -17,6 +17,7 @@ import type {
   MenuItem,
   Order,
   PaymentMethod,
+  Review,
   UserProfile
 } from '../types';
 
@@ -93,8 +94,13 @@ export const saveCart = async (
     
     // Filter out undefined values from cart items
     const cleanedItems = cart.items.map(item => {
+      // Validate menuItemId exists
+      if (!item.menuItemId) {
+        console.error('Cart item missing menuItemId:', item);
+      }
+      
       const cleanedItem: any = {
-        menuItemId: item.menuItemId,
+        menuItemId: item.menuItemId || '', // Ensure it's never undefined
         name: item.name,
         price: item.price,
         quantity: item.quantity,
@@ -166,9 +172,21 @@ export const createOrder = async (
   orderData: Omit<Order, 'id'>
 ): Promise<{ success: boolean; orderId?: string; error?: string }> => {
   try {
+    // Validate that all items have menuItemId
+    const itemsWithMenuId = orderData.items.map(item => {
+      if (!item.menuItemId) {
+        console.warn('Order item missing menuItemId, generating fallback:', item.name);
+      }
+      return {
+        ...item,
+        menuItemId: item.menuItemId || `temp-${item.name.replace(/\s+/g, '-').toLowerCase()}`
+      };
+    });
+    
     const orderRef = doc(collection(db, 'orders'));
     await setDoc(orderRef, {
       ...orderData,
+      items: itemsWithMenuId, // Use validated items
       id: orderRef.id,
       orderDate: serverTimestamp(),
     });
@@ -429,6 +447,110 @@ export const isFavorite = async (
     return { success: true, isFavorite: favoriteSnap.exists() };
   } catch (error: any) {
     console.error('Error checking favorite:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ============= REVIEWS =============
+
+export const saveReview = async (
+  review: Omit<Review, 'id' | 'createdAt'>
+): Promise<{ success: boolean; reviewId?: string; error?: string }> => {
+  try {
+    const reviewRef = doc(collection(db, 'reviews'));
+    await setDoc(reviewRef, {
+      ...review,
+      id: reviewRef.id,
+      createdAt: serverTimestamp(),
+    });
+    return { success: true, reviewId: reviewRef.id };
+  } catch (error: any) {
+    console.error('Error saving review:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const getMenuItemReviews = async (
+  menuItemId: string
+): Promise<{ success: boolean; data?: Review[]; error?: string }> => {
+  try {
+    const reviewsRef = collection(db, 'reviews');
+    const q = query(reviewsRef, where('menuItemId', '==', menuItemId));
+    const querySnapshot = await getDocs(q);
+    
+    const reviews: Review[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      reviews.push({
+        ...data,
+        createdAt: data.createdAt?.toDate(),
+      } as Review);
+    });
+    
+    return { success: true, data: reviews };
+  } catch (error: any) {
+    console.error('Error getting menu item reviews:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const hasUserReviewedItem = async (
+  userId: string,
+  orderId: string,
+  menuItemId: string
+): Promise<{ success: boolean; hasReviewed?: boolean; error?: string }> => {
+  try {
+    // Validate inputs
+    if (!userId || !orderId || !menuItemId) {
+      console.error('Missing required parameters:', { userId, orderId, menuItemId });
+      return { success: false, hasReviewed: false, error: 'Missing required parameters' };
+    }
+
+    const reviewsRef = collection(db, 'reviews');
+    const q = query(
+      reviewsRef, 
+      where('userId', '==', userId),
+      where('orderId', '==', orderId),
+      where('menuItemId', '==', menuItemId)
+    );
+    const querySnapshot = await getDocs(q);
+    return { success: true, hasReviewed: !querySnapshot.empty };
+  } catch (error: any) {
+    console.error('Error checking review:', error);
+    // If it's a permission error, return success with hasReviewed false
+    // so the user can still submit a review
+    if (error.code === 'permission-denied') {
+      return { success: true, hasReviewed: false };
+    }
+    return { success: false, hasReviewed: false, error: error.message };
+  }
+};
+
+export const getOrderReviews = async (
+  userId: string,
+  orderId: string
+): Promise<{ success: boolean; data?: Review[]; error?: string }> => {
+  try {
+    const reviewsRef = collection(db, 'reviews');
+    const q = query(
+      reviewsRef,
+      where('userId', '==', userId),
+      where('orderId', '==', orderId)
+    );
+    const querySnapshot = await getDocs(q);
+    
+    const reviews: Review[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      reviews.push({
+        ...data,
+        createdAt: data.createdAt?.toDate(),
+      } as Review);
+    });
+    
+    return { success: true, data: reviews };
+  } catch (error: any) {
+    console.error('Error getting order reviews:', error);
     return { success: false, error: error.message };
   }
 };

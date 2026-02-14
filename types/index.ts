@@ -94,3 +94,14 @@ export interface Restaurant {
   cuisine: string[];
   isOpen: boolean;
 }
+
+export interface Review {
+  id: string;
+  userId: string;
+  orderId: string;
+  menuItemId: string;
+  menuItemName: string;
+  rating: number; // 1-5
+  comment: string;
+  createdAt: Date;
+}

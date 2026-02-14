@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import BestsellingSvg from '../assets/HomePage/icons/bestselling.svg';
 import FavouriteSvg from '../assets/HomePage/icons/favourite.svg';
@@ -8,16 +8,29 @@ import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 import { getCurrentUser } from '../services/auth';
-import { getUserOrders } from '../services/database';
+import { getUserOrders, hasUserReviewedItem } from '../services/database';
 import type { Order } from '../types';
 
 export default function MyOrdersCompletedScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviewedOrders, setReviewedOrders] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadCompletedOrders();
   }, []);
+
+  // Refresh review status when screen comes into focus (e.g., after leaving a review)
+  useFocusEffect(
+    useCallback(() => {
+      const user = getCurrentUser();
+      if (user && orders.length > 0) {
+        checkReviewStatus(orders, user.uid).catch(error => {
+          console.error('Failed to refresh review status:', error);
+        });
+      }
+    }, [orders])
+  );
 
   const loadCompletedOrders = async () => {
     setLoading(true);
@@ -30,9 +43,55 @@ export default function MyOrdersCompletedScreen() {
           order => order.status === 'delivered'
         );
         setOrders(completedOrders);
+        setLoading(false);
+        
+        // Check review status in background (non-blocking)
+        checkReviewStatus(completedOrders, user.uid).catch(error => {
+          console.error('Failed to check review status:', error);
+        });
+      } else {
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
+  };
+
+  const checkReviewStatus = async (ordersList: Order[], userId: string) => {
+    const reviewed = new Set<string>();
+    
+    for (const order of ordersList) {
+      try {
+        let allReviewed = true;
+        
+        for (const item of order.items) {
+          const itemId = item.menuItemId || `temp-${item.name.replace(/\s+/g, '-').toLowerCase()}`;
+          
+          try {
+            const reviewCheck = await hasUserReviewedItem(userId, order.id, itemId);
+            
+            if (!reviewCheck.hasReviewed) {
+              allReviewed = false;
+              break;
+            }
+          } catch (error) {
+            console.warn('Error checking review status for item:', item.name, error);
+            // If we can't check, assume not reviewed
+            allReviewed = false;
+            break;
+          }
+        }
+        
+        if (allReviewed && order.items.length > 0) {
+          reviewed.add(order.id);
+        }
+      } catch (error) {
+        console.warn('Error checking review status for order:', order.id, error);
+        // Continue with next order
       }
     }
-    setLoading(false);
+    
+    setReviewedOrders(reviewed);
   };
 
   const handleTabChange = (tab: 'active' | 'cancelled') => {
@@ -100,6 +159,29 @@ export default function MyOrdersCompletedScreen() {
                       <View style={styles.completedButton}>
                         <Text style={styles.completedButtonText}>Delivered</Text>
                       </View>
+                      <Pressable 
+                        style={[
+                          styles.reviewButton,
+                          reviewedOrders.has(order.id) && styles.reviewedButton
+                        ]}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          router.push({
+                            pathname: './review-order',
+                            params: { 
+                              orderId: order.id,
+                              viewMode: reviewedOrders.has(order.id) ? 'true' : 'false'
+                            }
+                          });
+                        }}
+                      >
+                        <Text style={[
+                          styles.reviewButtonText,
+                          reviewedOrders.has(order.id) && styles.reviewedButtonText
+                        ]}>
+                          {reviewedOrders.has(order.id) ? 'Reviewed' : 'Review'}
+                        </Text>
+                      </Pressable>
                     </View>
                   </View>
                   <View style={styles.orderRightSection}>
@@ -233,6 +315,23 @@ const styles = StyleSheet.create({
     borderColor: '#1A5D1A'
   },
   completedButtonText: { color: '#1A5D1A', fontSize: 11, fontWeight: '600' },
+  reviewButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#1A5D1A',
+    borderRadius: 6,
+  },
+  reviewButtonText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  reviewedButton: {
+    backgroundColor: '#9CA3AF',
+  },
+  reviewedButtonText: {
+    color: '#E5E7EB',
+  },
   orderRightSection: { alignItems: 'flex-end' },
   orderPrice: { fontSize: 16, fontWeight: '700', color: '#1A5D1A' },
   emptyStateContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },

@@ -185,6 +185,33 @@ Example structure:
 
 ---
 
+### Collection: `reviews`
+**Auto-created by app** when users submit reviews for completed orders.
+- Auto-generated document ID
+- Allows users to rate and review menu items
+
+Example structure:
+```json
+{
+  "id": "review-abc123",
+  "userId": "user-uid",
+  "orderId": "order-abc123",
+  "menuItemId": "menu-001",
+  "menuItemName": "Chicken Curry",
+  "rating": 5,
+  "comment": "Absolutely delicious! Best curry I've had.",
+  "createdAt": [timestamp]
+}
+```
+
+**Features:**
+- Users can review each item in a completed order
+- Multiple items in one order = multiple reviews (one per item)
+- Ratings: 1-5 stars
+- Duplicate reviews prevented per user/order/item combination
+
+---
+
 ## 📷 Uploading Product Images to Firebase Storage
 
 ### Method 1: Using Firebase Console (Easiest)
@@ -429,13 +456,47 @@ service firebase.storage {
 ## ❓ Troubleshooting
 
 ### Issue: "Permission denied" error
-**Solution:** Check Firestore Rules:
+**Solution:** Check Firestore Rules - Make sure your rules allow authenticated users to read and write:
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
+    // Allow authenticated users to read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow authenticated users to read/write their own cart
+    match /carts/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow authenticated users to read/write their own payment methods
+    match /paymentMethods/{document=**} {
       allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to read menu items
+    match /menuItems/{document=**} {
+      allow read: if true;
+      allow write: if false; // Only admins
+    }
+    
+    // Allow authenticated users to read/write their own orders
+    match /orders/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to read/write their own favorites
+    match /favorites/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to read/write reviews
+    match /reviews/{reviewId} {
+      allow read: if true; // Anyone can read reviews
+      allow create: if request.auth != null; // Only authenticated users can create
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId; // Only review owner can edit/delete
     }
   }
 }
