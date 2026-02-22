@@ -25,6 +25,16 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Setup Guides
+
+This project includes several setup guides to help you configure different features:
+
+- **[Firebase Setup Guide](FIRESTORE_SETUP_GUIDE.md)** - Configure Firebase and Firestore
+- **[Notification Setup Guide](NOTIFICATION_SETUP_GUIDE.md)** - Set up push notifications
+- **[Merchant Signup Guide](MERCHANT_SIGNUP_GUIDE.md)** - Configure merchant registration
+- **[How to Add Menu Items](HOW_TO_ADD_MORE_ITEMS.md)** - Add menu items to the app
+- **[Restaurant ID Info](RESTAURANT_ID_INFO.md)** - Understand restaurant IDs
+
 ## Get a fresh project
 
 When you're ready, run:
