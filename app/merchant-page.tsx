@@ -4,8 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { db } from '../config/firebase';
-import { Order } from '../types';
+import { auth, db } from '../config/firebase';
+import { getMerchantProfile } from '../services/database';
+import { MerchantAccount, Order } from '../types';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
 import SideBar from './side-bar';
@@ -28,6 +29,7 @@ export default function MerchantPage() {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [cartVisible, setCartVisible] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [merchantProfile, setMerchantProfile] = useState<MerchantAccount | null>(null);
   
   // Dropdown states for order categories
   const [newOrdersExpanded, setNewOrdersExpanded] = useState(true);
@@ -58,8 +60,23 @@ export default function MerchantPage() {
   const maxSalesValue = Math.max(...salesTrend.map(item => item.value));
 
   useEffect(() => {
+    loadMerchantProfile();
     loadOrders();
   }, []);
+
+  const loadMerchantProfile = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const result = await getMerchantProfile(currentUser.uid);
+        if (result.success && result.data) {
+          setMerchantProfile(result.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading merchant profile:', error);
+    }
+  };
 
   const loadOrders = async () => {
     try {
@@ -194,6 +211,32 @@ export default function MerchantPage() {
         </Pressable>
         <ThemedText type="title" style={styles.headerTitle}>Merchant Dashboard</ThemedText>
       </View>
+
+      {/* Pending Approval Banner */}
+      {merchantProfile && merchantProfile.status === 'pending' && (
+        <View style={styles.pendingBanner}>
+          <Text style={styles.pendingBannerIcon}>⏳</Text>
+          <View style={styles.pendingBannerContent}>
+            <Text style={styles.pendingBannerTitle}>Account Pending Approval</Text>
+            <Text style={styles.pendingBannerText}>
+              Your merchant account is awaiting verification. You'll be notified once approved.
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Approved Banner */}
+      {merchantProfile && merchantProfile.status === 'approved' && (
+        <View style={styles.approvedBanner}>
+          <Text style={styles.approvedBannerIcon}>✅</Text>
+          <View style={styles.approvedBannerContent}>
+            <Text style={styles.approvedBannerTitle}>Account Verified!</Text>
+            <Text style={styles.approvedBannerText}>
+              Your merchant account is active and verified.
+            </Text>
+          </View>
+        </View>
+      )}
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Sales Stats */}
@@ -639,6 +682,78 @@ const styles = StyleSheet.create({
   customerInfo: {
     fontSize: 11,
     color: '#999',
+  },
+  pendingBanner: {
+    backgroundColor: '#FFF3CD',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FFA500',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  pendingBannerIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  pendingBannerContent: {
+    flex: 1,
+  },
+  pendingBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#856404',
+    marginBottom: 4,
+  },
+  pendingBannerText: {
+    fontSize: 12,
+    color: '#856404',
+    lineHeight: 16,
+  },
+  approvedBanner: {
+    backgroundColor: '#D4EDDA',
+    borderLeftWidth: 4,
+    borderLeftColor: '#28A745',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  approvedBannerIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  approvedBannerContent: {
+    flex: 1,
+  },
+  approvedBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#155724',
+    marginBottom: 4,
+  },
+  approvedBannerText: {
+    fontSize: 12,
+    color: '#155724',
+    lineHeight: 16,
   },
   bottomNav: {
     position: 'absolute',

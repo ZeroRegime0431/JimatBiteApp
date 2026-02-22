@@ -16,8 +16,9 @@ import FacebookSvg from '../assets/icons/facebook.svg';
 import FingerprintSvg from '../assets/icons/fingerprint.svg';
 import GoogleSvg from '../assets/icons/google.svg';
 
-// Firebase Authentication
+// Firebase Authentication and Database
 import { signIn } from '../services/auth';
+import { getMerchantProfile } from '../services/database';
 
 export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
@@ -45,10 +46,21 @@ export default function LoginScreen() {
       // Attempt to sign in with Firebase
       const result = await signIn(email.trim(), password);
 
-      if (result.success) {
-        console.log('Login successful — navigating to home page');
-        // Navigate to home page on successful login
-        router.replace("/home-page");
+      if (result.success && result.user) {
+        console.log('Login successful — checking user type');
+        
+        // Check if user is a merchant
+        const merchantResult = await getMerchantProfile(result.user.uid);
+        
+        if (merchantResult.success && merchantResult.data) {
+          // User is a merchant - redirect to merchant dashboard
+          console.log('Merchant detected — navigating to merchant page');
+          router.replace("/merchant-page");
+        } else {
+          // User is a regular customer - redirect to home page
+          console.log('Customer detected — navigating to home page');
+          router.replace("/home-page");
+        }
       } else {
         // Show error message from Firebase
         setError(result.error || "Login failed. Please try again.");
@@ -152,7 +164,7 @@ export default function LoginScreen() {
           Don’t have an account?{" "}
           <Text
             style={styles.signUpText}
-            onPress={() => router.push("/signup")}
+            onPress={() => router.push("/signup-selection")}
           >
             Sign Up
           </Text>

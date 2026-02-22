@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 import { getCurrentUser } from '../services/auth';
+import { getMerchantProfile } from '../services/database';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
 import SideBar from './side-bar';
@@ -31,6 +32,7 @@ export default function SupportScreen() {
   const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMerchant, setIsMerchant] = useState(false);
 
   React.useEffect(() => {
     const updateTime = () => {
@@ -50,6 +52,17 @@ export default function SupportScreen() {
     const user = getCurrentUser();
     const email = user?.email?.toLowerCase().trim();
     setIsAdmin(email === 'ali@example.com');
+  }, []);
+
+  React.useEffect(() => {
+    const checkMerchantStatus = async () => {
+      const user = getCurrentUser();
+      if (user) {
+        const result = await getMerchantProfile(user.uid);
+        setIsMerchant(result.success && result.data !== undefined);
+      }
+    };
+    checkMerchantStatus();
   }, []);
 
   return (
@@ -113,8 +126,8 @@ export default function SupportScreen() {
         </Pressable>
       </ScrollView>
 
-      {/* Dashboard Floating Button (Admin only) */}
-      {isAdmin && (
+      {/* Dashboard Floating Button (Admin or Merchant) */}
+      {(isAdmin || isMerchant) && (
         <Pressable
           style={styles.dashboardButton}
           onPress={() => router.push('./merchant-page')}

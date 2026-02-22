@@ -105,3 +105,54 @@ export interface Review {
   comment: string;
   createdAt: Date;
 }
+
+export interface MerchantAccount {
+  id: string;
+  uid: string; // Firebase Auth UID
+  fullName: string;
+  email: string;
+  password?: string; // Not stored in Firestore, only for initial creation
+  confirmPassword?: string; // Not stored in Firestore
+  mobileNumber?: string;
+  
+  // Step 2: Business Information
+  storeName: string;
+  businessType: string; // Restaurant, Cafe, Bakery, Other
+  cuisineTags: string[]; // Bakery, Chinese, Western, Healthy, Noodle, etc.
+  storePhone?: string;
+  logoURL?: string;
+  
+  // Step 3: Address & Fulfillment
+  addressLine1: string;
+  addressLine2?: string;
+  postCode: string;
+  city: string;
+  fulfillmentMethods: ('pickup' | 'delivery' | 'both')[];
+  
+  // Business Hours
+  businessHours: {
+    isOpen24Hours: boolean;
+    openTime?: string; // e.g., "10:00 AM"
+    closeTime?: string; // e.g., "10:00 PM"
+  };
+  
+  // Step 4: Bank & Documents
+  bankDetails: {
+    bankName: string;
+    accountHolderName: string;
+    accountNumber: string;
+  };
+  documents?: {
+    businessLicense?: string; // URL to uploaded document
+    ownerID?: string; // URL to uploaded document
+  };
+  
+  // Status & Metadata
+  status: 'pending' | 'approved' | 'rejected' | 'active' | 'suspended';
+  isVerified: boolean;
+  rating?: number;
+  totalOrders?: number;
+  createdAt: Date;
+  updatedAt: Date;
+  approvedAt?: Date;
+}

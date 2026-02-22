@@ -7,7 +7,7 @@ export default function HomeScreen() {
   };
 
   const handleSignupPress = () => {
-    router.push("/signup");
+    router.push("/signup-selection");
   };
 
   return (

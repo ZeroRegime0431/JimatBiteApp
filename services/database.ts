@@ -1,24 +1,25 @@
 // Firestore database operations
 import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where
+    collection,
+    deleteDoc,
+    doc,
+    getDoc,
+    getDocs,
+    query,
+    serverTimestamp,
+    setDoc,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type {
-  Cart,
-  MenuItem,
-  Order,
-  PaymentMethod,
-  Review,
-  UserProfile
+    Cart,
+    MenuItem,
+    MerchantAccount,
+    Order,
+    PaymentMethod,
+    Review,
+    UserProfile
 } from '../types';
 
 // ============= USER PROFILE =============
@@ -79,6 +80,136 @@ export const updateUserProfile = async (
     return { success: true };
   } catch (error: any) {
     console.error('Error updating user profile:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ============= MERCHANT PROFILE =============
+
+export const createMerchantProfile = async (
+  uid: string, 
+  data: Omit<MerchantAccount, 'id' | 'uid' | 'createdAt' | 'updatedAt'>
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const merchantRef = doc(db, 'merchants', uid);
+    await setDoc(merchantRef, {
+      ...data,
+      id: uid,
+      uid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error creating merchant profile:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const getMerchantProfile = async (uid: string): Promise<{ success: boolean; data?: MerchantAccount; error?: string }> => {
+  try {
+    const merchantRef = doc(db, 'merchants', uid);
+    const merchantSnap = await getDoc(merchantRef);
+    
+    if (merchantSnap.exists()) {
+      const data = merchantSnap.data();
+      return { 
+        success: true, 
+        data: {
+          ...data,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (typeof data.createdAt === 'string' ? new Date(data.createdAt) : data.createdAt),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : (typeof data.updatedAt === 'string' ? new Date(data.updatedAt) : data.updatedAt),
+          approvedAt: data.approvedAt?.toDate ? data.approvedAt.toDate() : (typeof data.approvedAt === 'string' ? new Date(data.approvedAt) : data.approvedAt),
+        } as MerchantAccount 
+      };
+    } else {
+      return { success: false, error: 'Merchant profile not found' };
+    }
+  } catch (error: any) {
+    console.error('Error getting merchant profile:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const updateMerchantProfile = async (
+  uid: string, 
+  data: Partial<MerchantAccount>
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const merchantRef = doc(db, 'merchants', uid);
+    await updateDoc(merchantRef, {
+      ...data,
+      updatedAt: serverTimestamp(),
+    });
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error updating merchant profile:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const getAllMerchants = async (
+  filterStatus?: 'pending' | 'approved' | 'rejected' | 'active' | 'suspended'
+): Promise<{ success: boolean; data?: MerchantAccount[]; error?: string }> => {
+  try {
+    let q;
+    if (filterStatus) {
+      q = query(collection(db, 'merchants'), where('status', '==', filterStatus));
+    } else {
+      q = collection(db, 'merchants');
+    }
+    
+    const querySnapshot = await getDocs(q);
+    const merchants: MerchantAccount[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      merchants.push({
+        ...data,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (typeof data.createdAt === 'string' ? new Date(data.createdAt) : data.createdAt),
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : (typeof data.updatedAt === 'string' ? new Date(data.updatedAt) : data.updatedAt),
+        approvedAt: data.approvedAt?.toDate ? data.approvedAt.toDate() : (typeof data.approvedAt === 'string' ? new Date(data.approvedAt) : data.approvedAt),
+      } as MerchantAccount);
+    });
+    
+    return { success: true, data: merchants };
+  } catch (error: any) {
+    console.error('Error getting merchants:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const approveMerchantAccount = async (
+  uid: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const merchantRef = doc(db, 'merchants', uid);
+    await updateDoc(merchantRef, {
+      status: 'approved',
+      isVerified: true,
+      approvedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error approving merchant account:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const rejectMerchantAccount = async (
+  uid: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const merchantRef = doc(db, 'merchants', uid);
+    await updateDoc(merchantRef, {
+      status: 'rejected',
+      isVerified: false,
+      updatedAt: serverTimestamp(),
+    });
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error rejecting merchant account:', error);
     return { success: false, error: error.message };
   }
 };

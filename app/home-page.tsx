@@ -9,7 +9,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Image as ExpoImage } from 'expo-image';
 import { db, storage } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
-import { addFavorite, getFavorites, getMenuItems, removeFavorite } from '../services/database';
+import { addFavorite, getFavorites, getMenuItems, getMerchantProfile, removeFavorite } from '../services/database';
 // import { registerForPushNotifications } from '../services/notifications'; // Commented out - requires development build
 import { MenuItem } from '../types';
 import CartSidebar from './cart-sidebar';
@@ -61,6 +61,7 @@ export default function HomePage() {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [cartVisible, setCartVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMerchant, setIsMerchant] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [allMenuItems, setAllMenuItems] = useState<MenuItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -78,6 +79,17 @@ export default function HomePage() {
     const user = getCurrentUser();
     const email = user?.email?.toLowerCase().trim();
     setIsAdmin(email === 'ali@example.com');
+  }, []);
+
+  useEffect(() => {
+    const checkMerchantStatus = async () => {
+      const user = getCurrentUser();
+      if (user) {
+        const result = await getMerchantProfile(user.uid);
+        setIsMerchant(result.success && result.data !== undefined);
+      }
+    };
+    checkMerchantStatus();
   }, []);
 
   useEffect(() => {
@@ -610,8 +622,8 @@ export default function HomePage() {
         </View>
       </ScrollView>
 
-      {/* Dashboard Floating Button (Admin only) */}
-      {isAdmin && (
+      {/* Dashboard Floating Button (Admin or Merchant) */}
+      {(isAdmin || isMerchant) && (
         <Pressable
           style={styles.dashboardButton}
           onPress={() => router.push('./merchant-page')}
