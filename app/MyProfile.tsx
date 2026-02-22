@@ -49,8 +49,8 @@ export default function MyProfile() {
           // Fall back to merchant profile data
           console.log('Using merchant profile data as fallback');
           setFullName(merchantResult.data.fullName || '');
-          setDob('');
           setEmail(merchantResult.data.email || '');
+          setDob(merchantResult.data.dateOfBirth || '');
           setPhone(merchantResult.data.mobileNumber || merchantResult.data.storePhone || '');
         }
       }
