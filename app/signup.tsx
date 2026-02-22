@@ -24,11 +24,13 @@ export default function SignupScreen() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [selectedDay, setSelectedDay] = useState(1);
   const [selectedMonth, setSelectedMonth] = useState(1);
@@ -63,8 +65,14 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     // Basic validation
-    if (!fullName.trim() || !email.trim() || !password.trim()) {
-      setError("Please fill in all required fields (Name, Email, Password) ❌");
+    if (!fullName.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+      setError("Please fill in all required fields (Name, Email, Password, Confirm Password) ❌");
+      return;
+    }
+
+    // Check if passwords match
+    if (password !== confirmPassword) {
+      setError("Passwords do not match ❌");
       return;
     }
 
@@ -219,6 +227,23 @@ export default function SignupScreen() {
             {"\n"}• One number (0-9)
             {"\n"}• One special character (!@#$%^&*)
           </Text>
+
+          <Text style={styles.label}>Confirm Password *</Text>
+          <View style={styles.passwordRow}>
+            <TextInput
+              placeholder="Re-enter your password"
+              secureTextEntry={!showConfirmPassword}
+              style={styles.passwordInput}
+              placeholderTextColor="#9e8852"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+            />
+            <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.showBtn}>
+              <Text style={styles.showHideText}>
+                {showConfirmPassword ? "Hide" : "Show"}
+              </Text>
+            </Pressable>
+          </View>
 
           <Text style={styles.label}>Mobile Number</Text>
           <View style={styles.phoneInputContainer}>

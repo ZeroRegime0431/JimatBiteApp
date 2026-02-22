@@ -2,6 +2,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+    Modal,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -18,9 +19,42 @@ export default function MerchantSignupStep1() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
+  const [dateModalVisible, setDateModalVisible] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(1);
+  const [selectedMonth, setSelectedMonth] = useState(1);
+  const [selectedYear, setSelectedYear] = useState(2000);
+  const [countryModalVisible, setCountryModalVisible] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState({ code: '+60', name: 'Malaysia', maxLength: 10 });
+
+  // Country codes with max phone number lengths
+  const countryCodes = [
+    { code: '+60', name: 'Malaysia', maxLength: 10 },
+    { code: '+65', name: 'Singapore', maxLength: 8 },
+    { code: '+1', name: 'USA/Canada', maxLength: 10 },
+    { code: '+44', name: 'United Kingdom', maxLength: 10 },
+    { code: '+61', name: 'Australia', maxLength: 9 },
+    { code: '+86', name: 'China', maxLength: 11 },
+    { code: '+91', name: 'India', maxLength: 10 },
+    { code: '+81', name: 'Japan', maxLength: 10 },
+    { code: '+82', name: 'South Korea', maxLength: 10 },
+    { code: '+62', name: 'Indonesia', maxLength: 11 },
+    { code: '+66', name: 'Thailand', maxLength: 9 },
+    { code: '+63', name: 'Philippines', maxLength: 10 },
+    { code: '+84', name: 'Vietnam', maxLength: 10 },
+    { code: '+49', name: 'Germany', maxLength: 11 },
+    { code: '+33', name: 'France', maxLength: 9 },
+    { code: '+971', name: 'UAE', maxLength: 9 },
+    { code: '+966', name: 'Saudi Arabia', maxLength: 9 },
+  ];
+
+  // Generate year, month, day options
+  const years = Array.from({ length: 81 }, (_, i) => 1970 + i);
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
 
   // Load data from params if returning from next step
   useEffect(() => {
@@ -28,7 +62,35 @@ export default function MerchantSignupStep1() {
     if (params.email) setEmail(params.email as string);
     if (params.password) setPassword(params.password as string);
     if (params.mobileNumber) setMobileNumber(params.mobileNumber as string);
+    if (params.dateOfBirth) setDateOfBirth(params.dateOfBirth as string);
+    if (params.countryCode) {
+      const country = countryCodes.find(c => c.code === params.countryCode);
+      if (country) setSelectedCountry(country);
+    }
   }, []);
+
+  const handleDateConfirm = () => {
+    const formattedDate = `${String(selectedDay).padStart(2, '0')} / ${String(selectedMonth).padStart(2, '0')} / ${selectedYear}`;
+    setDateOfBirth(formattedDate);
+    setDateModalVisible(false);
+  };
+
+  const handleCountrySelect = (country: typeof countryCodes[0]) => {
+    setSelectedCountry(country);
+    setCountryModalVisible(false);
+    // Clear mobile number if it exceeds new country's max length
+    if (mobileNumber.length > country.maxLength) {
+      setMobileNumber('');
+    }
+  };
+
+  const handleMobileNumberChange = (text: string) => {
+    // Only allow digits and limit to country's max length
+    const digitsOnly = text.replace(/[^0-9]/g, '');
+    if (digitsOnly.length <= selectedCountry.maxLength) {
+      setMobileNumber(digitsOnly);
+    }
+  };
 
   const handleBack = () => {
     router.back();
@@ -44,6 +106,8 @@ export default function MerchantSignupStep1() {
         email: email.trim(),
         password: password,
         mobileNumber: mobileNumber.trim(),
+        dateOfBirth: dateOfBirth,
+        countryCode: selectedCountry.code,
       }
     });
   };
@@ -104,6 +168,8 @@ export default function MerchantSignupStep1() {
         email: email.trim(),
         password: password,
         mobileNumber: mobileNumber.trim(),
+        dateOfBirth: dateOfBirth,
+        countryCode: selectedCountry.code,
       }
     });
   };
@@ -182,14 +248,37 @@ export default function MerchantSignupStep1() {
           </Text>
 
           <Text style={styles.label}>Mobile Number</Text>
-          <TextInput
-            placeholder="+ 123 456 789"
+          <View style={styles.phoneInputContainer}>
+            <Pressable 
+              style={styles.countryCodeButton}
+              onPress={() => setCountryModalVisible(true)}
+            >
+              <Text style={styles.countryCodeText}>{selectedCountry.code}</Text>
+              <Text style={styles.dropdownArrow}>▼</Text>
+            </Pressable>
+            <TextInput
+              placeholder={`Enter ${selectedCountry.maxLength} digits`}
+              style={styles.phoneInput}
+              placeholderTextColor="#9e8852"
+              keyboardType="phone-pad"
+              value={mobileNumber}
+              onChangeText={handleMobileNumberChange}
+              maxLength={selectedCountry.maxLength}
+            />
+          </View>
+          <Text style={styles.phoneHint}>
+            {selectedCountry.name}: Max {selectedCountry.maxLength} digits
+          </Text>
+
+          <Text style={styles.label}>Date of birth</Text>
+          <Pressable 
             style={styles.input}
-            placeholderTextColor="#9e8852"
-            keyboardType="phone-pad"
-            value={mobileNumber}
-            onChangeText={setMobileNumber}
-          />
+            onPress={() => setDateModalVisible(true)}
+          >
+            <Text style={[styles.dateText, !dateOfBirth && styles.placeholderText]}>
+              {dateOfBirth || "DD / MM / YYYY"}
+            </Text>
+          </Pressable>
 
           <Text style={styles.label}>Email</Text>
           <TextInput
@@ -223,6 +312,149 @@ export default function MerchantSignupStep1() {
           </View>
         </ScrollView>
       </View>
+
+      {/* Date of Birth Modal */}
+      <Modal
+        visible={dateModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDateModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Select Date of Birth</Text>
+            
+            <View style={styles.pickerRow}>
+              {/* Day Picker */}
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>Day</Text>
+                <ScrollView style={styles.picker} showsVerticalScrollIndicator={false}>
+                  {days.map((day) => (
+                    <Pressable
+                      key={day}
+                      style={[
+                        styles.pickerItem,
+                        selectedDay === day && styles.pickerItemSelected
+                      ]}
+                      onPress={() => setSelectedDay(day)}
+                    >
+                      <Text style={[
+                        styles.pickerItemText,
+                        selectedDay === day && styles.pickerItemTextSelected
+                      ]}>
+                        {day}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Month Picker */}
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>Month</Text>
+                <ScrollView style={styles.picker} showsVerticalScrollIndicator={false}>
+                  {months.map((month) => (
+                    <Pressable
+                      key={month}
+                      style={[
+                        styles.pickerItem,
+                        selectedMonth === month && styles.pickerItemSelected
+                      ]}
+                      onPress={() => setSelectedMonth(month)}
+                    >
+                      <Text style={[
+                        styles.pickerItemText,
+                        selectedMonth === month && styles.pickerItemTextSelected
+                      ]}>
+                        {month}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Year Picker */}
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>Year</Text>
+                <ScrollView style={styles.picker} showsVerticalScrollIndicator={false}>
+                  {years.map((year) => (
+                    <Pressable
+                      key={year}
+                      style={[
+                        styles.pickerItem,
+                        selectedYear === year && styles.pickerItemSelected
+                      ]}
+                      onPress={() => setSelectedYear(year)}
+                    >
+                      <Text style={[
+                        styles.pickerItemText,
+                        selectedYear === year && styles.pickerItemTextSelected
+                      ]}>
+                        {year}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setDateModalVisible(false)}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleDateConfirm}
+              >
+                <Text style={styles.modalButtonTextConfirm}>Confirm</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Country Code Modal */}
+      <Modal
+        visible={countryModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setCountryModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Select Country Code</Text>
+            
+            <ScrollView style={styles.countryList} showsVerticalScrollIndicator={false}>
+              {countryCodes.map((country) => (
+                <Pressable
+                  key={country.code + country.name}
+                  style={[
+                    styles.countryItem,
+                    selectedCountry.code === country.code && styles.countryItemSelected
+                  ]}
+                  onPress={() => handleCountrySelect(country)}
+                >
+                  <Text style={styles.countryCodeInList}>{country.code}</Text>
+                  <Text style={styles.countryName}>{country.name}</Text>
+                  {selectedCountry.code === country.code && (
+                    <Text style={styles.checkmark}>✓</Text>
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            <Pressable
+              style={[styles.modalButton, styles.modalButtonCancel]}
+              onPress={() => setCountryModalVisible(false)}
+            >
+              <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -380,5 +612,165 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#245B2A",
+  },
+  phoneInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  countryCodeButton: {
+    backgroundColor: "#FFECA9",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    minWidth: 85,
+  },
+  countryCodeText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#245B2A",
+  },
+  dropdownArrow: {
+    fontSize: 10,
+    color: "#245B2A",
+  },
+  phoneInput: {
+    flex: 1,
+    backgroundColor: "#FFECA9",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    fontSize: 14,
+    color: "#245B2A",
+  },
+  phoneHint: {
+    fontSize: 11,
+    color: "#888",
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  dateText: {
+    fontSize: 14,
+    color: "#245B2A",
+  },
+  placeholderText: {
+    color: "#9e8852",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    width: "90%",
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#245B2A",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  pickerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  pickerContainer: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  pickerLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#245B2A",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  picker: {
+    height: 150,
+    backgroundColor: "#FFECA9",
+    borderRadius: 12,
+  },
+  pickerItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: "center",
+  },
+  pickerItemSelected: {
+    backgroundColor: "#FFF952",
+  },
+  pickerItemText: {
+    fontSize: 14,
+    color: "#245B2A",
+  },
+  pickerItemTextSelected: {
+    fontWeight: "700",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    marginHorizontal: 4,
+  },
+  modalButtonCancel: {
+    backgroundColor: "#E0E0E0",
+  },
+  modalButtonConfirm: {
+    backgroundColor: "#FFF952",
+  },
+  modalButtonTextCancel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#555",
+  },
+  modalButtonTextConfirm: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#245B2A",
+  },
+  countryList: {
+    maxHeight: 400,
+    marginBottom: 20,
+  },
+  countryItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: "#FFECA9",
+  },
+  countryItemSelected: {
+    backgroundColor: "#FFF952",
+  },
+  countryCodeInList: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#245B2A",
+    minWidth: 50,
+  },
+  countryName: {
+    fontSize: 14,
+    color: "#245B2A",
+    flex: 1,
+  },
+  checkmark: {
+    fontSize: 18,
+    color: "#245B2A",
+    fontWeight: "700",
   },
 });

@@ -114,6 +114,8 @@ export interface MerchantAccount {
   password?: string; // Not stored in Firestore, only for initial creation
   confirmPassword?: string; // Not stored in Firestore
   mobileNumber?: string;
+  dateOfBirth?: string;
+  countryCode?: string;
   
   // Step 2: Business Information
   storeName: string;

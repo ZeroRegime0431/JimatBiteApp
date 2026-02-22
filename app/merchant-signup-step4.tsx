@@ -215,6 +215,14 @@ export default function MerchantSignupStep4() {
           merchantData.mobileNumber = (params.mobileNumber as string).trim();
         }
         
+        if (params.dateOfBirth && (params.dateOfBirth as string).trim()) {
+          merchantData.dateOfBirth = (params.dateOfBirth as string).trim();
+        }
+        
+        if (params.countryCode && (params.countryCode as string).trim()) {
+          merchantData.countryCode = (params.countryCode as string).trim();
+        }
+        
         if (params.storePhone && (params.storePhone as string).trim()) {
           merchantData.storePhone = (params.storePhone as string).trim();
         }
