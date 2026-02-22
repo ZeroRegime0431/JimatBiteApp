@@ -19,6 +19,7 @@ import GoogleSvg from '../assets/icons/google.svg';
 // Firebase Authentication and Database
 import { signIn } from '../services/auth';
 import { getMerchantProfile } from '../services/database';
+import { registerForPushNotifications } from '../services/notifications';
 
 export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
@@ -48,6 +49,15 @@ export default function LoginScreen() {
 
       if (result.success && result.user) {
         console.log('Login successful — checking user type');
+        
+        // Register for push notifications
+        const notifResult = await registerForPushNotifications(result.user.uid);
+        if (notifResult.success) {
+          console.log('✓ Notifications registered successfully');
+          console.log('Push token:', notifResult.token);
+        } else {
+          console.log('✗ Notification registration failed:', notifResult.error);
+        }
         
         // Check if user is a merchant
         const merchantResult = await getMerchantProfile(result.user.uid);

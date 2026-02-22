@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "JimatBiteApp",
-    "slug": "JimatBiteApp",
+    "slug": "jimatbiteapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -11,7 +11,10 @@
     "ios": {
       "bundleIdentifier": "com.jimatbite.app",
       "buildNumber": "1.0.0",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
       "package": "com.jimatbite.app",
@@ -23,7 +26,13 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "WAKE_LOCK"
+      ]
     },
     "web": {
       "output": "static",
@@ -46,6 +55,7 @@
           }
         }
       ],
+      "expo-notifications",
       "expo-font",
       "expo-web-browser"
     ],

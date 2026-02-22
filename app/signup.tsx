@@ -19,6 +19,7 @@ import GoogleSvg from '../assets/icons/google.svg';
 // Firebase Authentication and Database
 import { signUp } from '../services/auth';
 import { createUserProfile } from '../services/database';
+import { registerForPushNotifications } from '../services/notifications';
 
 export default function SignupScreen() {
   const [fullName, setFullName] = useState("");
@@ -119,6 +120,15 @@ export default function SignupScreen() {
         };
         
         await createUserProfile(result.user.uid, profileData);
+        
+        // Register for push notifications
+        const notifResult = await registerForPushNotifications(result.user.uid);
+        if (notifResult.success) {
+          console.log('✓ Notifications registered successfully');
+          console.log('Push token:', notifResult.token);
+        } else {
+          console.log('✗ Notification registration failed:', notifResult.error);
+        }
         
         console.log('Signup successful — navigating to onboarding');
         // Navigate to onboarding for new users

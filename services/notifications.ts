@@ -1,32 +1,106 @@
 // Push notification service
-// import * as Notifications from 'expo-notifications';
-import { doc, getDoc } from 'firebase/firestore';
+import Constants from 'expo-constants';
+import * as Notifications from 'expo-notifications';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { Platform } from 'react-native';
 import { db } from '../config/firebase';
+
+// Configure notification behavior
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 /**
  * Register device for push notifications and save token to Firestore
  */
 export const registerForPushNotifications = async (
-  _userId: string
+  userId: string
 ): Promise<{ success: boolean; token?: string; error?: string }> => {
-  return {
-    success: false,
-    error: 'Push notifications disabled in Expo Go',
-  };
+  try {
+    // Check if running on physical device (required for push notifications)
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#1A5D1A',
+      });
+    }
+
+    // Request permission
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    
+    if (finalStatus !== 'granted') {
+      return {
+        success: false,
+        error: 'Permission not granted for push notifications',
+      };
+    }
+
+    // Get Expo push token
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+    
+    if (!projectId) {
+      return {
+        success: false,
+        error: 'Project ID not found. Please configure EAS in app.json',
+      };
+    }
+
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    const token = tokenData.data;
+
+    // Save token to Firestore
+    await setDoc(doc(db, 'deviceTokens', userId), {
+      token,
+      platform: Platform.OS,
+      updatedAt: new Date(),
+    }, { merge: true });
+
+    console.log('Push notification token registered:', token);
+    return { success: true, token };
+  } catch (error: any) {
+    console.error('Error registering for push notifications:', error);
+    return { success: false, error: error.message };
+  }
 };
 
 /**
  * Send a local notification (appears on device immediately)
  */
 export const sendLocalNotification = async (
-  _title: string,
-  _body: string,
-  _data?: any
+  title: string,
+  body: string,
+  data?: any
 ): Promise<{ success: boolean; notificationId?: string; error?: string }> => {
-  return {
-    success: false,
-    error: 'Local notifications disabled in Expo Go',
-  };
+  try {
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data,
+        sound: true,
+      },
+      trigger: null, // Show immediately
+    });
+
+    return { success: true, notificationId };
+  } catch (error: any) {
+    console.error('Error sending local notification:', error);
+    return { success: false, error: error.message };
+  }
 };
 
 /**
@@ -51,6 +125,49 @@ export const sendOrderConfirmationNotification = async (
     return { success: result.success, error: result.error };
   } catch (error: any) {
     console.error('Error sending order confirmation notification:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Send push notification via Expo Push API
+ */
+export const sendPushNotification = async (
+  pushToken: string,
+  title: string,
+  body: string,
+  data?: any
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const message = {
+      to: pushToken,
+      sound: 'default',
+      title: title,
+      body: body,
+      data: data || {},
+    };
+
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+
+    const result = await response.json();
+    
+    if (response.ok && result.data) {
+      console.log('Push notification sent successfully');
+      return { success: true };
+    } else {
+      console.error('Push notification failed:', result);
+      return { success: false, error: result.errors?.[0]?.message || 'Failed to send notification' };
+    }
+  } catch (error: any) {
+    console.error('Error sending push notification:', error);
     return { success: false, error: error.message };
   }
 };
@@ -171,3 +288,31 @@ export const checkGeneralNotifications = async (userId: string): Promise<boolean
     return true;
   }
 };
+
+/**
+ * Add notification received listener
+ * Call this in your app's root component
+ */
+export const addNotificationReceivedListener = (
+  callback: (notification: Notifications.Notification) => void
+) => {
+  return Notifications.addNotificationReceivedListener(callback);
+};
+
+/**
+ * Add notification response listener (when user taps notification)
+ * Call this in your app's root component
+ */
+export const addNotificationResponseListener = (
+  callback: (response: Notifications.NotificationResponse) => void
+) => {
+  return Notifications.addNotificationResponseReceivedListener(callback);
+};
+
+/**
+ * Get the last notification response (useful for handling notifications when app launches)
+ */
+export const getLastNotificationResponse = async () => {
+  return await Notifications.getLastNotificationResponseAsync();
+};
+

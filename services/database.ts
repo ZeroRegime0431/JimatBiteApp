@@ -1,25 +1,25 @@
 // Firestore database operations
 import {
-    collection,
-    deleteDoc,
-    doc,
-    getDoc,
-    getDocs,
-    query,
-    serverTimestamp,
-    setDoc,
-    updateDoc,
-    where
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type {
-    Cart,
-    MenuItem,
-    MerchantAccount,
-    Order,
-    PaymentMethod,
-    Review,
-    UserProfile
+  Cart,
+  MenuItem,
+  MerchantAccount,
+  Order,
+  PaymentMethod,
+  Review,
+  UserProfile
 } from '../types';
 
 // ============= USER PROFILE =============
@@ -321,6 +321,36 @@ export const createOrder = async (
       id: orderRef.id,
       orderDate: serverTimestamp(),
     });
+    
+    // Send order confirmation notification
+    try {
+      const { sendOrderConfirmationNotification } = await import('./notifications');
+      const tokenResult = await getUserDeviceToken(orderData.userId);
+      
+      if (tokenResult.success && tokenResult.token) {
+        const { sendPushNotification } = await import('./notifications');
+        const notifResult = await sendPushNotification(
+          tokenResult.token,
+          '🎉 Order Placed',
+          'Your order has been placed.',
+          {
+            orderId: orderRef.id,
+            type: 'order_confirmation',
+            screen: 'order-details',
+          }
+        );
+        
+        if (notifResult.success) {
+          console.log('✓ Order confirmation notification sent');
+        } else {
+          console.log('⚠ Notification send failed:', notifResult.error);
+        }
+      }
+    } catch (notifError) {
+      console.log('⚠ Failed to send order notification:', notifError);
+      // Don't fail order creation if notification fails
+    }
+    
     return { success: true, orderId: orderRef.id };
   } catch (error: any) {
     console.error('Error creating order:', error);
@@ -389,6 +419,71 @@ export const updateOrderStatus = async (
   try {
     const orderRef = doc(db, 'orders', orderId);
     await updateDoc(orderRef, { status });
+    
+    // Send order status notification
+    try {
+      const { sendPushNotification } = await import('./notifications');
+      
+      // Get order details to find userId and restaurantName
+      const orderSnap = await getDoc(orderRef);
+      if (orderSnap.exists()) {
+        const orderData = orderSnap.data() as Order;
+        const tokenResult = await getUserDeviceToken(orderData.userId);
+        
+        if (tokenResult.success && tokenResult.token) {
+          // Create status-specific notification
+          const statusMessages: Record<string, { title: string; body: string }> = {
+            confirmed: {
+              title: '✅ Order Confirmed',
+              body: 'Your order has been confirmed.'
+            },
+            preparing: {
+              title: '👨‍🍳 Preparing Your Order',
+              body: 'Your order is being prepared.'
+            },
+            'on-the-way': {
+              title: '🚗 Order On The Way',
+              body: 'Your order is on the way.'
+            },
+            delivered: {
+              title: '🎊 Order Completed',
+              body: 'Your order has been completed.'
+            },
+            cancelled: {
+              title: '❌ Order Cancelled',
+              body: 'Your order has been cancelled.'
+            }
+          };
+          
+          const notification = statusMessages[status] || {
+            title: 'Order Update',
+            body: `Your order status has been updated to: ${status}`
+          };
+          
+          const notifResult = await sendPushNotification(
+            tokenResult.token,
+            notification.title,
+            notification.body,
+            {
+              orderId,
+              status,
+              type: 'order_status',
+              screen: 'order-details',
+            }
+          );
+          
+          if (notifResult.success) {
+            console.log(`✓ Order status notification sent: ${status}`);
+          } else {
+            console.log('⚠ Notification send failed:', notifResult.error);
+          }
+        }
+      }
+    } catch (notifError) {
+      console.log('⚠ Failed to send status notification:', notifError);
+      // Don't fail status update if notification fails
+    }
+    
     return { success: true };
   } catch (error: any) {
     console.error('Error updating order status:', error);
@@ -682,6 +777,25 @@ export const getOrderReviews = async (
     return { success: true, data: reviews };
   } catch (error: any) {
     console.error('Error getting order reviews:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ============= DEVICE TOKENS FOR NOTIFICATIONS =============
+
+export const getUserDeviceToken = async (userId: string): Promise<{ success: boolean; token?: string; error?: string }> => {
+  try {
+    const tokenRef = doc(db, 'deviceTokens', userId);
+    const tokenSnap = await getDoc(tokenRef);
+    
+    if (tokenSnap.exists()) {
+      const data = tokenSnap.data();
+      return { success: true, token: data.token };
+    } else {
+      return { success: false, error: 'No device token found for user' };
+    }
+  } catch (error: any) {
+    console.error('Error getting device token:', error);
     return { success: false, error: error.message };
   }
 };

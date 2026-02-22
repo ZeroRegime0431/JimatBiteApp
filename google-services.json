@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "99439612556",
+    "project_id": "jimatbite",
+    "storage_bucket": "jimatbite.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:99439612556:android:3f22c1f6047ef4e5bea1a9",
+        "android_client_info": {
+          "package_name": "com.jimatbite.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXAss-yVpYW2rIg49WvMselndI1yRWOZI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
