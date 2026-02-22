@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getCurrentUser } from '../services/auth';
-import { getUserProfile } from '../services/database';
+import { getMerchantProfile, getUserProfile } from '../services/database';
+import { MerchantAccount } from '../types';
 
 // SVG icons
 import HomeSvg from '../assets/HomePage/icons/home.svg';
@@ -28,6 +29,8 @@ interface SideBarProps {
 export default function SideBar({ visible, onClose }: SideBarProps) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [profile, setProfile] = useState({ fullName: 'John Smith', email: 'Loremipsum@email.com' });
+  const [merchantProfile, setMerchantProfile] = useState<MerchantAccount | null>(null);
+  const [isMerchant, setIsMerchant] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
 
   useEffect(() => {
@@ -47,14 +50,41 @@ export default function SideBar({ visible, onClose }: SideBarProps) {
   useEffect(() => {
     const loadProfile = async () => {
       const user = getCurrentUser();
+      console.log('Current user in sidebar:', user);
       if (user) {
         const result = await getUserProfile(user.uid);
+        const merchantResult = await getMerchantProfile(user.uid);
+        
+        console.log('User profile result:', result);
+        console.log('Merchant profile result:', merchantResult);
+        
+        // Set merchant profile if exists
+        if (merchantResult.success && merchantResult.data) {
+          setMerchantProfile(merchantResult.data);
+          setIsMerchant(true);
+        } else {
+          setMerchantProfile(null);
+          setIsMerchant(false);
+        }
+        
+        // Use user profile data, or fall back to merchant data if user profile is missing
         if (result.success && result.data) {
+          console.log('Setting profile with user data:', { fullName: result.data.fullName, email: result.data.email });
           setProfile({
             fullName: result.data.fullName,
             email: result.data.email
           });
+        } else if (merchantResult.success && merchantResult.data) {
+          console.log('Using merchant profile data as fallback:', { fullName: merchantResult.data.fullName, email: merchantResult.data.email });
+          setProfile({
+            fullName: merchantResult.data.fullName,
+            email: merchantResult.data.email
+          });
+        } else {
+          console.log('No profile data found');
         }
+      } else {
+        console.log('No user found in sidebar');
       }
     };
     if (visible) {
@@ -111,6 +141,13 @@ export default function SideBar({ visible, onClose }: SideBarProps) {
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>{profile.fullName}</Text>
                 <Text style={styles.profileEmail}>{profile.email}</Text>
+                {isMerchant && merchantProfile && (
+                  <View style={styles.merchantBadgeContainer}>
+                    <View style={styles.merchantBadge}>
+                      <Text style={styles.merchantBadgeText}>🏪 {merchantProfile.storeName}</Text>
+                    </View>
+                  </View>
+                )}
               </View>
               <Pressable style={styles.profileArrow} onPress={() => { onClose(); router.push('./MyProfile'); }}>
                 <BackArrowSvg width={18} height={18} />
@@ -380,5 +417,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#fff',
     fontWeight: 'bold',
+  },
+  merchantBadgeContainer: {
+    marginTop: 6,
+  },
+  merchantBadge: {
+    backgroundColor: 'rgba(243, 255, 207, 0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  merchantBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1A5D1A',
   },
 });

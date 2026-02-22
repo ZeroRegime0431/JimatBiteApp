@@ -9,7 +9,8 @@ import SupportSvg from '../assets/HomePage/icons/support.svg';
 import EditSvg from '../assets/Profile/icons/edit.svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 import { getCurrentUser } from '../services/auth';
-import { getUserProfile, updateUserProfile } from '../services/database';
+import { getMerchantProfile, getUserProfile, updateUserProfile } from '../services/database';
+import { MerchantAccount } from '../types';
 
 export default function MyProfile() {
   const [fullName, setFullName] = useState('');
@@ -19,6 +20,8 @@ export default function MyProfile() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [dateModalVisible, setDateModalVisible] = useState(false);
+  const [merchantProfile, setMerchantProfile] = useState<MerchantAccount | null>(null);
+  const [isMerchant, setIsMerchant] = useState(false);
   const [selectedDay, setSelectedDay] = useState(1);
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [selectedYear, setSelectedYear] = useState(2000);
@@ -28,11 +31,27 @@ export default function MyProfile() {
       const user = getCurrentUser();
       if (user) {
         const result = await getUserProfile(user.uid);
+        const merchantResult = await getMerchantProfile(user.uid);
+        
+        // Set merchant profile if exists
+        if (merchantResult.success && merchantResult.data) {
+          setMerchantProfile(merchantResult.data);
+          setIsMerchant(true);
+        }
+        
+        // Use user profile data, or fall back to merchant data if user profile is missing
         if (result.success && result.data) {
           setFullName(result.data.fullName || '');
           setDob(result.data.dateOfBirth || '');
           setEmail(result.data.email || '');
           setPhone(result.data.mobileNumber || '');
+        } else if (merchantResult.success && merchantResult.data) {
+          // Fall back to merchant profile data
+          console.log('Using merchant profile data as fallback');
+          setFullName(merchantResult.data.fullName || '');
+          setDob('');
+          setEmail(merchantResult.data.email || '');
+          setPhone(merchantResult.data.mobileNumber || merchantResult.data.storePhone || '');
         }
       }
       setLoading(false);
@@ -158,6 +177,67 @@ export default function MyProfile() {
             <Text style={styles.updateButtonText}>Update Profile</Text>
           )}
         </Pressable>
+
+        {/* Merchant Information Section */}
+        {isMerchant && merchantProfile && (
+          <View style={styles.merchantSection}>
+            <Text style={styles.merchantSectionTitle}>Merchant Information</Text>
+            
+            <View style={styles.merchantInfoCard}>
+              <View style={styles.merchantFieldRow}>
+                <Text style={styles.merchantFieldLabel}>Store Name:</Text>
+                <Text style={styles.merchantFieldValue}>{merchantProfile.storeName}</Text>
+              </View>
+              
+              <View style={styles.merchantFieldRow}>
+                <Text style={styles.merchantFieldLabel}>Business Type:</Text>
+                <Text style={styles.merchantFieldValue}>{merchantProfile.businessType}</Text>
+              </View>
+              
+              <View style={styles.merchantFieldRow}>
+                <Text style={styles.merchantFieldLabel}>Status:</Text>
+                <View style={[
+                  styles.statusBadge,
+                  merchantProfile.status === 'approved' && styles.statusBadgeApproved,
+                  merchantProfile.status === 'pending' && styles.statusBadgePending,
+                  merchantProfile.status === 'rejected' && styles.statusBadgeRejected,
+                ]}>
+                  <Text style={styles.statusBadgeText}>{merchantProfile.status.toUpperCase()}</Text>
+                </View>
+              </View>
+              
+              <View style={styles.merchantFieldRow}>
+                <Text style={styles.merchantFieldLabel}>Store Phone:</Text>
+                <Text style={styles.merchantFieldValue}>{merchantProfile.storePhone || 'N/A'}</Text>
+              </View>
+              
+              <View style={styles.merchantFieldRow}>
+                <Text style={styles.merchantFieldLabel}>Address:</Text>
+                <Text style={styles.merchantFieldValue}>
+                  {merchantProfile.addressLine1}, {merchantProfile.city} {merchantProfile.postCode}
+                </Text>
+              </View>
+              
+              <View style={styles.merchantFieldRow}>
+                <Text style={styles.merchantFieldLabel}>Cuisine Tags:</Text>
+                <View style={styles.cuisineTagsContainer}>
+                  {merchantProfile.cuisineTags.map((tag, index) => (
+                    <View key={index} style={styles.cuisineTag}>
+                      <Text style={styles.cuisineTagText}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            <Pressable 
+              style={styles.viewDashboardButton}
+              onPress={() => router.push('./merchant-page')}
+            >
+              <Text style={styles.viewDashboardButtonText}>View Merchant Dashboard</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
         )}
       </ScrollView>
@@ -483,6 +563,90 @@ const styles = StyleSheet.create({
   modalButtonTextConfirm: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  merchantSection: {
+    marginTop: 32,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  merchantSectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A5D1A',
+    marginBottom: 16,
+  },
+  merchantInfoCard: {
+    backgroundColor: '#F9F9F9',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  merchantFieldRow: {
+    marginBottom: 12,
+  },
+  merchantFieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 4,
+  },
+  merchantFieldValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#222',
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginTop: 4,
+  },
+  statusBadgeApproved: {
+    backgroundColor: '#4CAF50',
+  },
+  statusBadgePending: {
+    backgroundColor: '#FFC107',
+  },
+  statusBadgeRejected: {
+    backgroundColor: '#F44336',
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+  },
+  cuisineTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  cuisineTag: {
+    backgroundColor: '#F3FFCF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  cuisineTagText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#1A5D1A',
+  },
+  viewDashboardButton: {
+    backgroundColor: '#1A5D1A',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  viewDashboardButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
 });
