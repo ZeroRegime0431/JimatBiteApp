@@ -1,6 +1,7 @@
 import {
   createUserWithEmailAndPassword,
   fetchSignInMethodsForEmail,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
@@ -21,6 +22,9 @@ export const signUp = async (email: string, password: string, fullName?: string)
         displayName: fullName
       });
     }
+    
+    // Send email verification
+    await sendEmailVerification(userCredential.user);
     
     return {
       success: true,
@@ -146,6 +150,66 @@ export const updateUserPassword = async (email: string, newPassword: string) => 
     return {
       success: true,
       message: 'Password updated successfully'
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: getErrorMessage(error.code)
+    };
+  }
+};
+
+// Check if current user's email is verified
+export const checkEmailVerified = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      return {
+        success: false,
+        verified: false,
+        error: 'No user logged in'
+      };
+    }
+    
+    // Reload user data to get latest verification status
+    await user.reload();
+    
+    return {
+      success: true,
+      verified: user.emailVerified
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      verified: false,
+      error: 'Failed to check verification status'
+    };
+  }
+};
+
+// Resend verification email
+export const resendVerificationEmail = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      return {
+        success: false,
+        error: 'No user logged in'
+      };
+    }
+    
+    if (user.emailVerified) {
+      return {
+        success: false,
+        error: 'Email is already verified'
+      };
+    }
+    
+    await sendEmailVerification(user);
+    
+    return {
+      success: true,
+      message: 'Verification email sent!'
     };
   } catch (error: any) {
     return {
