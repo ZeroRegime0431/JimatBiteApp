@@ -85,7 +85,7 @@ export default function SupportScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable style={styles.backButton} onPress={() => router.replace('/home-page')}>
           <BackArrowLeftSvg width={24} height={24} />
         </Pressable>
         <Text style={styles.headerTitle}>Help</Text>
@@ -138,16 +138,16 @@ export default function SupportScreen() {
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <Pressable style={styles.navItem} onPress={() => router.push('./home-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./home-page')}>
           <HomeSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./best-seller-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./best-seller-page')}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./favorites-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./favorites-page')}>
           <FavouriteSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./recommend-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./recommend-page')}>
           <RecommendationSvg width={28} height={28} />
         </Pressable>
         <Pressable style={styles.navItem}>

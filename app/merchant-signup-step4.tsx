@@ -41,7 +41,7 @@ export default function MerchantSignupStep4() {
 
   const handleBack = () => {
     // Pass current data back when going to previous step
-    router.push({
+    router.replace({
       pathname: "/merchant-signup-step3",
       params: {
         ...params,

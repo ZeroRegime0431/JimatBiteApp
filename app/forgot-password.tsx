@@ -144,7 +144,7 @@ export default function ForgotPasswordScreen() {
       console.log('✅ Password reset complete for:', email);
       
       // Navigate back to login
-      router.push('./login');
+      router.replace('/login');
     } catch (err: any) {
       console.error('Save password error:', err);
       setError("Failed to update password. Please try again.");

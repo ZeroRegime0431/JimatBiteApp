@@ -1,8 +1,8 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { getDownloadURL, ref } from 'firebase/storage';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, BackHandler, Dimensions, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -70,6 +70,20 @@ export default function HomePage() {
   const [promoItem, setPromoItem] = useState<MenuItem | null>(null);
   const [imageURLs, setImageURLs] = useState<{ [key: string]: string }>({});
   const [dataLoading, setDataLoading] = useState(true);
+
+  // Handle hardware back button - prevent going back to auth screens
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        // Return true to prevent default back behavior (exit app instead)
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+      return () => subscription.remove();
+    }, [])
+  );
 
   useEffect(() => {
     loadHomeData();
@@ -633,19 +647,19 @@ export default function HomePage() {
       )}
 
       <View style={styles.bottomNav}>
-        <Pressable style={styles.navItem} onPress={() => {}}>
+        <Pressable style={styles.navItem}>
           <HomeSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./best-seller-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./best-seller-page')}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('/favorites-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('/favorites-page')}>
           <FavouriteSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./recommend-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./recommend-page')}>
           <RecommendationSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./support-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./support-page')}>
           <SupportSvg width={28} height={28} />
         </Pressable>
       </View>

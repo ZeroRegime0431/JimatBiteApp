@@ -162,7 +162,7 @@ export default function MerchantSignupStep1() {
     setError("");
 
     // Store data in navigation params and move to next step
-    router.push({
+    router.replace({
       pathname: "/merchant-signup-step2",
       params: {
         ...params,

@@ -36,14 +36,14 @@ export default function MyOrdersCancelledScreen() {
   };
 
   const handleTabChange = (tab: 'active' | 'completed') => {
-    if (tab === 'active') router.push('./myorders-active');
-    if (tab === 'completed') router.push('./myorders-completed');
+    if (tab === 'active') router.replace('/myorders-active');
+    if (tab === 'completed') router.replace('/myorders-completed');
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable style={styles.headerIcon} onPress={() => router.push('./home-page')}>
+        <Pressable style={styles.headerIcon} onPress={() => router.replace('/home-page')}>
           <BackArrowLeftSvg width={22} height={22} />
         </Pressable>
         <View style={styles.headerTitleWrap}>
@@ -114,19 +114,19 @@ export default function MyOrdersCancelledScreen() {
       </View>
 
       <View style={styles.bottomNavigation}>
-        <Pressable style={styles.navIcon} onPress={() => router.push('./home-page')}>
+        <Pressable style={styles.navIcon} onPress={() => router.replace('/home-page')}>
           <HomeSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navIcon} onPress={() => router.push('./best-seller-page')}>
+        <Pressable style={styles.navIcon} onPress={() => router.replace('/best-seller-page')}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navIcon} onPress={() => router.push('/favorites-page')}>
+        <Pressable style={styles.navIcon} onPress={() => router.replace('/favorites-page')}>
           <FavouriteSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navIcon} onPress={() => router.push('./recommend-page')}>
+        <Pressable style={styles.navIcon} onPress={() => router.replace('/recommend-page')}>
           <RecommendationSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navIcon} onPress={() => router.push('./support-page')}>
+        <Pressable style={styles.navIcon} onPress={() => router.replace('/support-page')}>
           <SupportSvg width={28} height={28} />
         </Pressable>
       </View>

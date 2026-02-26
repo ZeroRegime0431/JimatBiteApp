@@ -34,7 +34,7 @@ const slides = [
     id: "1",
     title: "Order For Food",
     description:
-      "Browse through a wide variety of delicious meals from multiple restaurants. Find your favorites and order with just a few taps.",
+~      "Browse through a wide variety of delicious meals from multiple restaurants. Find your favorites and order with just a few taps.",
     image: PizzaSvg,
     icon: DocumentSvg,
   },
@@ -68,7 +68,7 @@ export default function Onboarding() {
 
   const handleSkip = () => {
     // Navigate straight to home page when user skips onboarding
-    router.push('/home-page');
+    router.replace('/home-page');
   };
 
   const handleViewableItemsChanged = ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -126,7 +126,7 @@ export default function Onboarding() {
                 style={styles.button}
                 onPress={
                   currentIndex === slides.length - 1
-                    ? () => router.push('/home-page')
+                    ? () => router.replace('/home-page')
                     : handleNext
                 }
               >
