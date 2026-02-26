@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getCurrentUser } from '../services/auth';
+import { subscribeToConversations } from '../services/chat';
 import { getMerchantProfile, getUserProfile } from '../services/database';
 import { MerchantAccount } from '../types';
 
@@ -32,6 +33,7 @@ export default function SideBar({ visible, onClose }: SideBarProps) {
   const [merchantProfile, setMerchantProfile] = useState<MerchantAccount | null>(null);
   const [isMerchant, setIsMerchant] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const updateTime = () => {
@@ -92,6 +94,19 @@ export default function SideBar({ visible, onClose }: SideBarProps) {
     }
   }, [visible]);
 
+  // Subscribe to conversations for unread count
+  useEffect(() => {
+    const user = getCurrentUser();
+    if (!user) return;
+
+    const unsubscribe = subscribeToConversations(user.uid, isMerchant, (conversations) => {
+      const totalUnread = conversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+      setUnreadCount(totalUnread);
+    });
+
+    return () => unsubscribe();
+  }, [isMerchant]);
+
   const handleLogout = () => {
     setShowLogoutModal(false);
     onClose();
@@ -100,6 +115,7 @@ export default function SideBar({ visible, onClose }: SideBarProps) {
 
   const menuItems = [
     { icon: OrdersSvg, label: 'My Orders', action: () => { onClose(); router.push('./myorders-active'); } },
+    { icon: ContactSvg, label: 'Messages', action: () => { onClose(); router.push('./chat-list'); }, showBadge: unreadCount > 0, badgeCount: unreadCount },
     { icon: MyProfileSvg, label: 'My Profile', action: () => { onClose(); router.push('./MyProfile'); } },
     { icon: AddressSvg, label: 'Delivery Address', action: () => console.log('Delivery Address') },
     { icon: PaymentSvg, label: 'Payment Methods', action: () => { onClose(); router.push('./payment-method'); } },
@@ -162,6 +178,11 @@ export default function SideBar({ visible, onClose }: SideBarProps) {
                       <item.icon width={44} height={44} />
                     </View>
                     <Text style={styles.menuLabel}>{item.label}</Text>
+                    {item.showBadge && item.badgeCount !== undefined && item.badgeCount > 0 && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{item.badgeCount > 99 ? '99+' : item.badgeCount}</Text>
+                      </View>
+                    )}
                   </Pressable>
                   {index < menuItems.length - 1 && (
                     <View style={styles.lineContainer}>
@@ -330,6 +351,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     fontWeight: '500',
+  },
+  badge: {
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 'auto',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   lineContainer: {
     alignItems: 'center',
