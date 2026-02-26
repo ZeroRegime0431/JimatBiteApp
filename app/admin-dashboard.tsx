@@ -1,12 +1,11 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, BackHandler, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { auth, db } from '../config/firebase';
-import { getMerchantProfile } from '../services/database';
+import { db } from '../config/firebase';
+import { approveMerchantAccount, getAllMerchants, rejectMerchantAccount } from '../services/database';
 import { MerchantAccount, Order } from '../types';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
@@ -25,106 +24,65 @@ import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 
 const { width } = Dimensions.get('window');
 
-export default function MerchantPage() {
+export default function AdminDashboard() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [cartVisible, setCartVisible] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [merchantProfile, setMerchantProfile] = useState<MerchantAccount | null>(null);
-  const [verificationBannerDismissed, setVerificationBannerDismissed] = useState(false);
   
-  // Dropdown states for order categories
-  const [newOrdersExpanded, setNewOrdersExpanded] = useState(true);
+  // Dropdown states
+  const [quickLinksExpanded, setQuickLinksExpanded] = useState(true);
+  const [merchantsExpanded, setMerchantsExpanded] = useState(true);
+  const [pendingOrdersExpanded, setPendingOrdersExpanded] = useState(true);
   const [completedOrdersExpanded, setCompletedOrdersExpanded] = useState(true);
   const [cancelledOrdersExpanded, setCancelledOrdersExpanded] = useState(true);
   
-  // Orders state
-  const [newOrders, setNewOrders] = useState<Order[]>([]);
+  // Data states
+  const [pendingMerchants, setPendingMerchants] = useState<MerchantAccount[]>([]);
+  const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
   const [cancelledOrders, setCancelledOrders] = useState<Order[]>([]);
   const [userNames, setUserNames] = useState<{ [userId: string]: string }>({});
-  
-  // Sales stats (dummy values for now)
-  const [todaySales, setTodaySales] = useState(1250.50);
-  const [weeklySales, setWeeklySales] = useState(8750.25);
-  const [monthlySales, setMonthlySales] = useState(35420.80);
-  const [totalOrders, setTotalOrders] = useState(0);
 
-  const salesTrend = [
-    { label: 'Mon', value: 420 },
-    { label: 'Tue', value: 560 },
-    { label: 'Wed', value: 380 },
-    { label: 'Thu', value: 690 },
-    { label: 'Fri', value: 760 },
-    { label: 'Sat', value: 920 },
-    { label: 'Sun', value: 640 },
-  ];
-  const maxSalesValue = Math.max(...salesTrend.map(item => item.value));
-
-  // Handle hardware back button - prevent going back to auth screens
+  // Handle hardware back button
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        // Return true to prevent default back behavior (exit app instead)
         return true;
       };
 
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-
       return () => subscription.remove();
     }, [])
   );
 
   useEffect(() => {
-    loadMerchantProfile();
-    loadOrders();
-    loadBannerDismissalState();
+    loadData();
   }, []);
 
-  const loadBannerDismissalState = async () => {
-    try {
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        const dismissed = await AsyncStorage.getItem(`verificationBanner_dismissed_${currentUser.uid}`);
-        setVerificationBannerDismissed(dismissed === 'true');
-      }
-    } catch (error) {
-      console.error('Error loading banner dismissal state:', error);
-    }
+  const loadData = async () => {
+    setLoading(true);
+    await Promise.all([
+      loadPendingMerchants(),
+      loadOrders()
+    ]);
+    setLoading(false);
   };
 
-  const dismissVerificationBanner = async () => {
+  const loadPendingMerchants = async () => {
     try {
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        await AsyncStorage.setItem(`verificationBanner_dismissed_${currentUser.uid}`, 'true');
-        setVerificationBannerDismissed(true);
+      const result = await getAllMerchants('pending');
+      if (result.success && result.data) {
+        setPendingMerchants(result.data);
       }
     } catch (error) {
-      console.error('Error dismissing banner:', error);
-    }
-  };
-
-  const loadMerchantProfile = async () => {
-    try {
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        const result = await getMerchantProfile(currentUser.uid);
-        if (result.success && result.data) {
-          setMerchantProfile(result.data);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading merchant profile:', error);
+      console.error('Error loading pending merchants:', error);
     }
   };
 
   const loadOrders = async () => {
     try {
-      setLoading(true);
       const ordersRef = collection(db, 'orders');
-      
-      // Fetch all orders
       const querySnapshot = await getDocs(ordersRef);
       
       const pending: Order[] = [];
@@ -152,7 +110,7 @@ export default function MerchantPage() {
         }
       });
       
-      // Fetch user names for all unique user IDs
+      // Fetch user names
       const userNameMap: { [userId: string]: string } = {};
       for (const userId of userIds) {
         try {
@@ -164,7 +122,6 @@ export default function MerchantPage() {
             userNameMap[userId] = 'Unknown User';
           }
         } catch (error) {
-          console.error(`Error fetching user ${userId}:`, error);
           userNameMap[userId] = 'Unknown User';
         }
       }
@@ -176,16 +133,71 @@ export default function MerchantPage() {
       completed.sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime());
       cancelled.sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime());
       
-      setNewOrders(pending);
+      setPendingOrders(pending);
       setCompletedOrders(completed);
       setCancelledOrders(cancelled);
-      setTotalOrders(pending.length + completed.length + cancelled.length);
-      
     } catch (error) {
       console.error('Error loading orders:', error);
-    } finally {
-      setLoading(false);
     }
+  };
+
+  const handleApproveMerchant = async (merchant: MerchantAccount) => {
+    Alert.alert(
+      'Approve Merchant',
+      `Are you sure you want to approve ${merchant.storeName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Approve',
+          onPress: async () => {
+            try {
+              const result = await approveMerchantAccount(merchant.uid);
+              if (result.success) {
+                Alert.alert('Success', 'Merchant approved successfully!');
+                loadPendingMerchants();
+              } else {
+                Alert.alert('Error', result.error || 'Failed to approve merchant');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'An error occurred while approving merchant');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleRejectMerchant = async (merchant: MerchantAccount) => {
+    Alert.alert(
+      'Reject Merchant',
+      `Are you sure you want to reject ${merchant.storeName}? This will mark their account as rejected.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Mark as rejected in Firestore
+              const result = await rejectMerchantAccount(merchant.uid);
+              
+              if (result.success) {
+                // Note: Deleting Firebase Auth users requires Admin SDK (server-side)
+                // For now, we mark as rejected. Consider implementing a Cloud Function
+                // to delete the auth account when status is set to 'rejected'
+                
+                Alert.alert('Success', 'Merchant rejected. Account marked as rejected.');
+                loadPendingMerchants();
+              } else {
+                Alert.alert('Error', result.error || 'Failed to reject merchant');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'An error occurred while rejecting merchant');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const formatDate = (date: Date) => {
@@ -195,6 +207,62 @@ export default function MerchantPage() {
       hour: '2-digit', 
       minute: '2-digit' 
     });
+  };
+
+  const renderMerchantCard = (merchant: MerchantAccount) => {
+    return (
+      <View key={merchant.uid} style={styles.merchantCard}>
+        <View style={styles.merchantHeader}>
+          <View style={styles.merchantInfo}>
+            <ThemedText style={styles.merchantStoreName}>{merchant.storeName}</ThemedText>
+            <ThemedText style={styles.merchantOwnerName}>{merchant.fullName}</ThemedText>
+            <ThemedText style={styles.merchantEmail}>{merchant.email}</ThemedText>
+          </View>
+        </View>
+        
+        <View style={styles.merchantDetails}>
+          <ThemedText style={styles.merchantDetailLabel}>Business Type:</ThemedText>
+          <ThemedText style={styles.merchantDetailValue}>{merchant.businessType}</ThemedText>
+        </View>
+        
+        <View style={styles.merchantDetails}>
+          <ThemedText style={styles.merchantDetailLabel}>Phone:</ThemedText>
+          <ThemedText style={styles.merchantDetailValue}>{merchant.mobileNumber || 'N/A'}</ThemedText>
+        </View>
+        
+        <View style={styles.merchantDetails}>
+          <ThemedText style={styles.merchantDetailLabel}>Address:</ThemedText>
+          <ThemedText style={styles.merchantDetailValue}>
+            {merchant.addressLine1}, {merchant.city}, {merchant.postCode}
+          </ThemedText>
+        </View>
+        
+        {merchant.bankDetails && (
+          <View style={styles.merchantDetails}>
+            <ThemedText style={styles.merchantDetailLabel}>Bank:</ThemedText>
+            <ThemedText style={styles.merchantDetailValue}>
+              {merchant.bankDetails.bankName} - {merchant.bankDetails.accountHolderName}
+            </ThemedText>
+          </View>
+        )}
+        
+        <View style={styles.merchantActions}>
+          <Pressable 
+            style={[styles.actionButton, styles.approveButton]}
+            onPress={() => handleApproveMerchant(merchant)}
+          >
+            <Text style={styles.approveButtonText}>✓ Approve</Text>
+          </Pressable>
+          
+          <Pressable 
+            style={[styles.actionButton, styles.rejectButton]}
+            onPress={() => handleRejectMerchant(merchant)}
+          >
+            <Text style={styles.rejectButtonText}>✗ Reject</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
   };
 
   const renderOrderCard = (order: Order, statusColor: string) => {
@@ -250,107 +318,87 @@ export default function MerchantPage() {
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <BackArrowLeftSvg width={24} height={24} />
         </Pressable>
-        <ThemedText type="title" style={styles.headerTitle}>Merchant Dashboard</ThemedText>
+        <ThemedText type="title" style={styles.headerTitle}>Admin Dashboard</ThemedText>
       </View>
 
-      {/* Pending Approval Banner */}
-      {merchantProfile && merchantProfile.status === 'pending' && (
-        <View style={styles.pendingBanner}>
-          <Text style={styles.pendingBannerIcon}>⏳</Text>
-          <View style={styles.pendingBannerContent}>
-            <Text style={styles.pendingBannerTitle}>Account Pending Approval</Text>
-            <Text style={styles.pendingBannerText}>
-              Your merchant account is awaiting verification. You'll be notified once approved.
-            </Text>
-          </View>
+      {/* Admin Badge */}
+      <View style={styles.adminBanner}>
+        <Text style={styles.adminBannerIcon}>👑</Text>
+        <View style={styles.adminBannerContent}>
+          <Text style={styles.adminBannerTitle}>Super Admin Access</Text>
+          <Text style={styles.adminBannerText}>
+            You have full access to manage merchants, orders, and all platform operations.
+          </Text>
         </View>
-      )}
-
-      {/* Approved Banner */}
-      {merchantProfile && merchantProfile.status === 'approved' && !verificationBannerDismissed && (
-        <View style={styles.approvedBanner}>
-          <Text style={styles.approvedBannerIcon}>✅</Text>
-          <View style={styles.approvedBannerContent}>
-            <Text style={styles.approvedBannerTitle}>Account Verified!</Text>
-            <Text style={styles.approvedBannerText}>
-              Your merchant account is active and verified.
-            </Text>
-          </View>
-          <Pressable onPress={dismissVerificationBanner} style={styles.closeBannerButton}>
-            <Text style={styles.closeBannerText}>✕</Text>
-          </Pressable>
-        </View>
-      )}
+      </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Sales Stats */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <ThemedText style={styles.statLabel}>Today's Sales</ThemedText>
-            <ThemedText style={styles.statValue}>${todaySales.toFixed(2)}</ThemedText>
-          </View>
-          <View style={styles.statCard}>
-            <ThemedText style={styles.statLabel}>Weekly Sales</ThemedText>
-            <ThemedText style={styles.statValue}>${weeklySales.toFixed(2)}</ThemedText>
-          </View>
-          <View style={styles.statCard}>
-            <ThemedText style={styles.statLabel}>Monthly Sales</ThemedText>
-            <ThemedText style={styles.statValue}>${monthlySales.toFixed(2)}</ThemedText>
-          </View>
-          <View style={styles.statCard}>
-            <ThemedText style={styles.statLabel}>Total Orders</ThemedText>
-            <ThemedText style={styles.statValue}>{totalOrders}</ThemedText>
-          </View>
-        </View>
-
-        <View style={styles.chartCard}>
-          <View style={styles.chartHeader}>
-            <ThemedText style={styles.chartTitle}>Weekly Sales Trend</ThemedText>
-            <ThemedText style={styles.chartSubtitle}>Dummy data</ThemedText>
-          </View>
-          <View style={styles.chartArea}>
-            {salesTrend.map((item) => {
-              const barHeight = Math.max(8, (item.value / maxSalesValue) * 120);
-              return (
-                <View key={item.label} style={styles.chartItem}>
-                  <View style={styles.chartBarWrapper}>
-                    <View style={[styles.chartBar, { height: barHeight }]} />
-                  </View>
-                  <ThemedText style={styles.chartLabel}>{item.label}</ThemedText>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.addItemSection}>
-          <View style={styles.sectionHeader}>
-            <ThemedText style={styles.sectionTitle}>Add New Menu Item</ThemedText>
-          </View>
-          <Pressable
-            style={styles.addItemButton}
-            onPress={() => router.push('./add-menu-item')}
+        
+        {/* Quick Links Section */}
+        <View style={styles.section}>
+          <Pressable 
+            style={styles.sectionHeader}
+            onPress={() => setQuickLinksExpanded(!quickLinksExpanded)}
           >
-            <ThemedText style={styles.addItemButtonText}>Add Item</ThemedText>
+            <ThemedText style={styles.sectionTitle}>Quick Links</ThemedText>
+            <View style={{ flex: 1 }} />
+            <View style={[styles.arrowIcon, { transform: [{ rotate: quickLinksExpanded ? '90deg' : '0deg' }] }]}>
+              <ArrowRightSvg width={20} height={20} />
+            </View>
           </Pressable>
-          <Pressable
-            style={styles.manageItemsButton}
-            onPress={() => router.push('./merchant-page-menuitem')}
-          >
-            <ThemedText style={styles.manageItemsButtonText}>View Menu Items</ThemedText>
-          </Pressable>
+          {quickLinksExpanded && (
+            <View style={styles.quickLinksContainer}>
+              <Pressable
+                style={styles.quickLinkButton}
+                onPress={() => router.push('./merchant-page-menuitem')}
+              >
+                <ThemedText style={styles.quickLinkText}>Manage Menu Items</ThemedText>
+              </Pressable>
+            </View>
+          )}
         </View>
 
-        <View style={styles.addItemSection}>
+        {/* Customer Chatbox Section */}
+        <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <ThemedText style={styles.sectionTitle}>Customer Chatbox</ThemedText>
           </View>
           <Pressable
-            style={styles.addItemButton}
+            style={styles.chatButton}
             onPress={() => router.push('./chat-list')}
           >
-            <ThemedText style={styles.addItemButtonText}>Messages</ThemedText>
+            <ThemedText style={styles.chatButtonText}>View All Messages</ThemedText>
           </Pressable>
+        </View>
+
+        {/* Pending Merchants Section */}
+        <View style={styles.section}>
+          <Pressable 
+            style={styles.sectionHeader}
+            onPress={() => setMerchantsExpanded(!merchantsExpanded)}
+          >
+            <ThemedText style={styles.sectionTitle}>Pending Merchants</ThemedText>
+            <View style={[styles.badge, { backgroundColor: '#FFA500' }]}>
+              <Text style={styles.badgeText}>{pendingMerchants.length}</Text>
+            </View>
+            <View style={{ flex: 1 }} />
+            <View style={[styles.arrowIcon, { transform: [{ rotate: merchantsExpanded ? '90deg' : '0deg' }] }]}>
+              <ArrowRightSvg width={20} height={20} />
+            </View>
+          </Pressable>
+          {merchantsExpanded && (
+            loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#1A5D1A" />
+              </View>
+            ) : pendingMerchants.length === 0 ? (
+              <View style={styles.emptyState}>
+                <ThemedText style={styles.emptyText}>No pending merchant applications</ThemedText>
+              </View>
+            ) : (
+              pendingMerchants.map(merchant => renderMerchantCard(merchant))
+            )
+          )}
         </View>
 
         {loading ? (
@@ -360,28 +408,28 @@ export default function MerchantPage() {
           </View>
         ) : (
           <>
-            {/* New Orders Section */}
+            {/* Pending Orders Section */}
             <View style={styles.section}>
               <Pressable 
                 style={styles.sectionHeader}
-                onPress={() => setNewOrdersExpanded(!newOrdersExpanded)}
+                onPress={() => setPendingOrdersExpanded(!pendingOrdersExpanded)}
               >
-                <ThemedText style={styles.sectionTitle}>New Orders</ThemedText>
+                <ThemedText style={styles.sectionTitle}>Pending Orders</ThemedText>
                 <View style={[styles.badge, { backgroundColor: '#FFA500' }]}>
-                  <Text style={styles.badgeText}>{newOrders.length}</Text>
+                  <Text style={styles.badgeText}>{pendingOrders.length}</Text>
                 </View>
                 <View style={{ flex: 1 }} />
-                <View style={[styles.arrowIcon, { transform: [{ rotate: newOrdersExpanded ? '90deg' : '0deg' }] }]}>
+                <View style={[styles.arrowIcon, { transform: [{ rotate: pendingOrdersExpanded ? '90deg' : '0deg' }] }]}>
                   <ArrowRightSvg width={20} height={20} />
                 </View>
               </Pressable>
-              {newOrdersExpanded && (
-                newOrders.length === 0 ? (
+              {pendingOrdersExpanded && (
+                pendingOrders.length === 0 ? (
                   <View style={styles.emptyState}>
-                    <ThemedText style={styles.emptyText}>No new orders</ThemedText>
+                    <ThemedText style={styles.emptyText}>No pending orders</ThemedText>
                   </View>
                 ) : (
-                  newOrders.map(order => renderOrderCard(order, '#FFA500'))
+                  pendingOrders.map(order => renderOrderCard(order, '#FFA500'))
                 )
               )}
             </View>
@@ -521,126 +569,50 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#1A5D1A',
-    alignItems: 'center',
-    right: -36,
-    
+    right: -30,
   },
   scrollView: {
     flex: 1,
   },
-  statsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 16,
-    gap: 12,
-  },
-  statCard: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    padding: 16,
-    width: (width - 44) / 2,
+  adminBanner: {
+    backgroundColor: '#E8F5E9',
     borderLeftWidth: 4,
     borderLeftColor: '#1A5D1A',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
     marginBottom: 8,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  statValue: {
-    fontSize: 20,
+  adminBannerIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  adminBannerContent: {
+    flex: 1,
+  },
+  adminBannerTitle: {
+    fontSize: 14,
     fontWeight: '700',
     color: '#1A5D1A',
+    marginBottom: 4,
   },
-  chartCard: {
-    marginHorizontal: 16,
-    marginBottom: 24,
-    padding: 16,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 14,
-    borderLeftWidth: 4,
-    borderLeftColor: '#1A5D1A',
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  chartTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-  },
-  chartSubtitle: {
+  adminBannerText: {
     fontSize: 12,
-    color: '#777',
-  },
-  chartArea: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: 140,
-  },
-  chartItem: {
-    alignItems: 'center',
-    width: 32,
-  },
-  chartBarWrapper: {
-    width: 16,
-    height: 120,
-    justifyContent: 'flex-end',
-  },
-  chartBar: {
-    width: 16,
-    borderRadius: 8,
-    backgroundColor: '#1A5D1A',
-  },
-  chartLabel: {
-    marginTop: 6,
-    fontSize: 10,
-    color: '#666',
-  },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#666',
+    color: '#2E7D32',
+    lineHeight: 16,
   },
   section: {
     paddingHorizontal: 16,
     marginBottom: 24,
-  },
-  addItemSection: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  addItemButton: {
-    backgroundColor: '#1A5D1A',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  addItemButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  manageItemsButton: {
-    marginTop: 10,
-    backgroundColor: '#1A5D1A',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1A5D1A',
-  },
-  manageItemsButtonText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '700',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -668,15 +640,108 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  emptyState: {
-    padding: 32,
-    alignItems: 'center',
-    backgroundColor: '#F9F9F9',
-    borderRadius: 12,
+  quickLinksContainer: {
+    gap: 10,
   },
-  emptyText: {
-    color: '#999',
+  quickLinkButton: {
+    backgroundColor: '#1A5D1A',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  quickLinkText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  chatButton: {
+    backgroundColor: '#1A5D1A',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  chatButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  merchantCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FFA500',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  merchantHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  merchantInfo: {
+    flex: 1,
+  },
+  merchantStoreName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 4,
+  },
+  merchantOwnerName: {
     fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  merchantEmail: {
+    fontSize: 12,
+    color: '#999',
+  },
+  merchantDetails: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  merchantDetailLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+    width: 100,
+  },
+  merchantDetailValue: {
+    fontSize: 13,
+    color: '#333',
+    flex: 1,
+  },
+  merchantActions: {
+    flexDirection: 'row',
+    marginTop: 12,
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  approveButton: {
+    backgroundColor: '#1A5D1A',
+  },
+  approveButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  rejectButton: {
+    backgroundColor: '#DC143C',
+  },
+  rejectButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   orderCard: {
     backgroundColor: '#fff',
@@ -739,86 +804,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#999',
   },
-  pendingBanner: {
-    backgroundColor: '#FFF3CD',
-    borderLeftWidth: 4,
-    borderLeftColor: '#FFA500',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 8,
-    borderRadius: 8,
-    flexDirection: 'row',
+  emptyState: {
+    padding: 32,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: '#F9F9F9',
+    borderRadius: 12,
   },
-  pendingBannerIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  pendingBannerContent: {
-    flex: 1,
-  },
-  pendingBannerTitle: {
+  emptyText: {
+    color: '#999',
     fontSize: 14,
-    fontWeight: '700',
-    color: '#856404',
-    marginBottom: 4,
   },
-  pendingBannerText: {
-    fontSize: 12,
-    color: '#856404',
-    lineHeight: 16,
-  },
-  approvedBanner: {
-    backgroundColor: '#D4EDDA',
-    borderLeftWidth: 4,
-    borderLeftColor: '#28A745',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 8,
-    borderRadius: 8,
-    flexDirection: 'row',
+  loadingContainer: {
+    padding: 40,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  approvedBannerIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  approvedBannerContent: {
-    flex: 1,
-  },
-  approvedBannerTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#155724',
-    marginBottom: 4,
-  },
-  approvedBannerText: {
-    fontSize: 12,
-    color: '#155724',
-    lineHeight: 16,
-  },
-  closeBannerButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  closeBannerText: {
-    fontSize: 20,
-    color: '#155724',
-    fontWeight: '700',
+  loadingText: {
+    marginTop: 12,
+    color: '#666',
   },
   bottomNav: {
     position: 'absolute',

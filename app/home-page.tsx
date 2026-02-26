@@ -19,6 +19,7 @@ import SideBar from './side-bar';
 // Declared SVG images (imported as components).
 
 // SVG icons
+import AdminSvg from '../assets/admin.svg';
 import BakerySvg from '../assets/HomePage/icons/bakery.svg';
 import BellSvg from '../assets/HomePage/icons/bell.svg';
 import BestsellingSvg from '../assets/HomePage/icons/bestselling.svg';
@@ -36,6 +37,7 @@ import SnacksSvg from '../assets/HomePage/icons/snacks.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
 import VeganSvg from '../assets/HomePage/icons/vegan.svg';
 import DashboardSvg from '../assets/MerchantPage/icons/dashboard.svg';
+import ArrowRightSvg from '../assets/Settings/icons/redarrowright.svg';
 
 const { width } = Dimensions.get('window');
 
@@ -62,6 +64,7 @@ export default function HomePage() {
   const [cartVisible, setCartVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isMerchant, setIsMerchant] = useState(false);
+  const [adminDropdownExpanded, setAdminDropdownExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [allMenuItems, setAllMenuItems] = useState<MenuItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -91,8 +94,7 @@ export default function HomePage() {
 
   useEffect(() => {
     const user = getCurrentUser();
-    const email = user?.email?.toLowerCase().trim();
-    setIsAdmin(email === 'ali@example.com');
+    setIsAdmin(user?.uid === 'a5L1LZoUCEZxcCeeWxFW7vIow323');
   }, []);
 
   useEffect(() => {
@@ -636,14 +638,34 @@ export default function HomePage() {
         </View>
       </ScrollView>
 
-      {/* Dashboard Floating Button (Admin or Merchant) */}
-      {(isAdmin || isMerchant) && (
-        <Pressable
-          style={styles.dashboardButton}
-          onPress={() => router.push('./merchant-page')}
-        >
-          <DashboardSvg width={32} height={32} />
-        </Pressable>
+      {/* Admin Dashboard Floating Buttons */}
+      {isAdmin && (
+        <View style={styles.adminFloatingContainer}>
+          {adminDropdownExpanded && (
+            <>
+              <Pressable
+                style={[styles.adminFloatingButton, styles.adminDashboardButton]}
+                onPress={() => router.push('./admin-dashboard')}
+              >
+                <AdminSvg width={32} height={32} />
+              </Pressable>
+              <Pressable
+                style={[styles.adminFloatingButton, styles.merchantDashboardButton]}
+                onPress={() => router.push('./merchant-page')}
+              >
+                <DashboardSvg width={32} height={32} />
+              </Pressable>
+            </>
+          )}
+          <Pressable
+            style={styles.adminToggleButton}
+            onPress={() => setAdminDropdownExpanded(!adminDropdownExpanded)}
+          >
+            <View style={[styles.arrowIcon, { transform: [{ rotate: adminDropdownExpanded ? '90deg' : '-90deg' }] }]}>
+              <ArrowRightSvg width={20} height={20} />
+            </View>
+          </Pressable>
+        </View>
       )}
 
       <View style={styles.bottomNav}>
@@ -727,14 +749,17 @@ const styles = StyleSheet.create({
   distanceText: { fontSize: 12, color: '#888', marginLeft: 8, left: -24, bottom: 48 },
   recommendPrice: { marginTop: 2, color: '#1A5D1A', fontWeight: '700', bottom: 48 },
 
-  dashboardButton: {
+  adminFloatingContainer: {
     position: 'absolute',
     right: 20,
     bottom: 94,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#1A5D1A',
+    alignItems: 'center',
+    gap: 12,
+  },
+  adminFloatingButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -742,6 +767,29 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  adminDashboardButton: {
+    backgroundColor: '#1A5D1A',
+  },
+  merchantDashboardButton: {
+    backgroundColor: '#1A5D1A',
+  },
+  adminToggleButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F4FFC9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  arrowIcon: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   bottomNav: { position: 'absolute', left: 12, right: 12, 
     bottom: 18, height: 64, backgroundColor: '#1A5D1A', 
