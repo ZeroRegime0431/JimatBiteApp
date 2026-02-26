@@ -1,13 +1,15 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { getDownloadURL, ref } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
-import { storage } from '../config/firebase';
+import { db, storage } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
+import { getOrCreateConversation } from '../services/chat';
 import { getOrderById, getUserOrders, updateOrderStatus } from '../services/database';
 import type { Order } from '../types';
 
@@ -214,6 +216,68 @@ export default function OrderDetailsScreen() {
     return grouped;
   };
 
+  // Check if order is active (can chat with merchant)
+  const isActiveOrder = () => {
+    if (!order) return false;
+    return ['pending', 'confirmed', 'preparing', 'on-the-way'].includes(order.status);
+  };
+
+  // Get merchant user ID by looking up merchant_accounts by store name
+  const getMerchantIdForRestaurant = async (restaurantName: string): Promise<string> => {
+    try {
+      // Query merchant_accounts collection to find merchant by storeName
+      const merchantsRef = collection(db, 'merchant_accounts');
+      const q = query(merchantsRef, where('storeName', '==', restaurantName));
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        // Return the merchant's user ID (uid field)
+        return snapshot.docs[0].data().uid || '';
+      }
+      
+      return '';
+    } catch (error) {
+      console.error('Error finding merchant:', error);
+      return '';
+    }
+  };
+
+  // Handle opening chat with merchant
+  const handleOpenChat = async (restaurantName: string) => {
+    const user = getCurrentUser();
+    if (!user || !order) return;
+
+    // Look up the merchant's user ID
+    const merchantId = await getMerchantIdForRestaurant(restaurantName);
+    if (!merchantId) {
+      Alert.alert('Error', 'Could not find merchant information');
+      return;
+    }
+
+    // Create or get conversation
+    const result = await getOrCreateConversation(
+      user.uid,
+      user.displayName || user.email || 'User',
+      merchantId,
+      restaurantName,
+      order.id
+    );
+
+    if (result.success && result.data) {
+      router.push({
+        pathname: '/chat-room',
+        params: {
+          conversationId: result.data.id,
+          merchantId: merchantId,
+          merchantName: restaurantName,
+          orderId: order.id
+        }
+      });
+    } else {
+      Alert.alert('Error', 'Could not open chat');
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -286,6 +350,16 @@ export default function OrderDetailsScreen() {
                   <Text style={styles.restaurantIconText}>{restaurantName.charAt(0)}</Text>
                 </View>
                 <Text style={styles.restaurantName}>{restaurantName}</Text>
+                
+                {/* Chat Button - Only for active orders */}
+                {isActiveOrder() && (
+                  <Pressable 
+                    style={styles.chatButton}
+                    onPress={() => handleOpenChat(restaurantName)}
+                  >
+                    <Text style={styles.chatButtonText}>💬 Chat</Text>
+                  </Pressable>
+                )}
               </View>
               
               {/* Items from this restaurant */}
@@ -599,6 +673,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+    flex: 1,
+  },
+  chatButton: {
+    backgroundColor: '#1A5D1A',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 8,
+  },
+  chatButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
   itemCard: {
     backgroundColor: '#fff',

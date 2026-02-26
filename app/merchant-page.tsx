@@ -311,6 +311,18 @@ export default function MerchantPage() {
           </Pressable>
         </View>
 
+        <View style={styles.addItemSection}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionTitle}>Customer Chatbox</ThemedText>
+          </View>
+          <Pressable
+            style={styles.addItemButton}
+            onPress={() => router.push('./chat-list')}
+          >
+            <ThemedText style={styles.addItemButtonText}>Messages</ThemedText>
+          </Pressable>
+        </View>
+
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#1A5D1A" />

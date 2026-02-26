@@ -158,3 +158,32 @@ export interface MerchantAccount {
   updatedAt: Date;
   approvedAt?: Date;
 }
+
+export interface Conversation {
+  id: string;
+  userId: string;
+  userName: string;
+  merchantId: string;
+  merchantName: string;
+  orderId?: string; // Optional link to a specific order
+  lastMessage: string;
+  lastMessageTime: Date;
+  unreadCount: number; // Unread messages for customer
+  unreadCountMerchant: number; // Unread messages for merchant
+  createdAt: Date;
+}
+
+export interface ChatMessage {
+  _id: string;
+  text: string;
+  createdAt: Date;
+  user: {
+    _id: string;
+    name: string;
+    avatar?: string;
+  };
+  read: boolean;
+  image?: string;
+  system?: boolean; // For system messages like order updates
+}
+
