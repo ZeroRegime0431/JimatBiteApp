@@ -3,6 +3,8 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -85,8 +87,16 @@ export default function LoginScreen() {
       </View>
 
       {/* WHITE BODY */}
-      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
-        <Text style={styles.welcomeTitle}>Welcome</Text>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardView}
+      >
+        <ScrollView 
+          style={styles.body} 
+          contentContainerStyle={styles.bodyContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.welcomeTitle}>Welcome</Text>
         <Text style={styles.welcomeDescription}>
           Sign in to discover delicious meals, track your orders, and enjoy fast delivery from your favorite restaurants.
         </Text>
@@ -169,7 +179,8 @@ export default function LoginScreen() {
             Sign Up
           </Text>
         </Text>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -177,7 +188,11 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F4FFC9",
+    backgroundColor: "#ffffff",
+  },
+
+  keyboardView: {
+    flex: 1,
   },
 
   // GREEN HEADER

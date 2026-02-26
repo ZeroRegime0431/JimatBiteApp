@@ -3,7 +3,9 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -230,11 +232,16 @@ export default function SignupScreen() {
 
         {/* White body */}
         <View style={styles.body}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.verificationContent}
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.keyboardView}
           >
-            <View style={styles.emailIcon}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.verificationContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.emailIcon}>
               <Text style={styles.emailIconText}>📧</Text>
             </View>
 
@@ -281,7 +288,8 @@ export default function SignupScreen() {
             <Text style={styles.verificationNote}>
               💡 Tip: Check your spam folder if you don't see the email.
             </Text>
-          </ScrollView>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </View>
       </View>
     );
@@ -299,11 +307,16 @@ export default function SignupScreen() {
 
       {/* White body */}
       <View style={styles.body}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.bodyContent}
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.keyboardView}
         >
-          <Text style={styles.label}>Full name *</Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.bodyContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={styles.label}>Full name *</Text>
           <TextInput
             placeholder="Your name"
             style={styles.input}
@@ -448,7 +461,8 @@ export default function SignupScreen() {
               <Text style={styles.bottomLink}>Log in</Text>
             </Pressable>
           </View>
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </View>
 
       {/* Date of Birth Modal */}
@@ -603,6 +617,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F7FFD4",
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     height: HEADER_HEIGHT,
