@@ -19,12 +19,14 @@ import ProfileSvg from '../assets/HomePage/icons/profile.svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 
 // Bottom navigation icons
+import AdminSvg from '../assets/admin.svg';
 import BestsellingSvg from '../assets/HomePage/icons/bestselling.svg';
 import FavouriteSvg from '../assets/HomePage/icons/favourite.svg';
 import HomeSvg from '../assets/HomePage/icons/home.svg';
 import RecommendationSvg from '../assets/HomePage/icons/recommendation.svg';
 import SupportSvg from '../assets/HomePage/icons/support.svg';
 import DashboardSvg from '../assets/MerchantPage/icons/dashboard.svg';
+import ArrowRightSvg from '../assets/Settings/icons/redarrowright.svg';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +40,7 @@ export default function BestSellerScreen() {
   const [imageURLs, setImageURLs] = useState<{ [key: string]: string }>({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [isMerchant, setIsMerchant] = useState(false);
+  const [adminDropdownExpanded, setAdminDropdownExpanded] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -59,8 +62,7 @@ export default function BestSellerScreen() {
 
   useEffect(() => {
     const user = getCurrentUser();
-    const email = user?.email?.toLowerCase().trim();
-    setIsAdmin(email === 'ali@example.com');
+    setIsAdmin(user?.uid === 'a5L1LZoUCEZxcCeeWxFW7vIow323');
   }, []);
 
   useEffect(() => {
@@ -256,14 +258,34 @@ export default function BestSellerScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Dashboard Floating Button (Admin or Merchant) */}
-      {(isAdmin || isMerchant) && (
-        <Pressable
-          style={styles.dashboardButton}
-          onPress={() => router.push('./merchant-page')}
-        >
-          <DashboardSvg width={32} height={32} />
-        </Pressable>
+      {/* Admin Dashboard Floating Buttons */}
+      {isAdmin && (
+        <View style={styles.adminFloatingContainer}>
+          {adminDropdownExpanded && (
+            <>
+              <Pressable
+                style={[styles.adminFloatingButton, styles.adminDashboardButton]}
+                onPress={() => router.push('./admin-dashboard')}
+              >
+                <AdminSvg width={32} height={32} />
+              </Pressable>
+              <Pressable
+                style={[styles.adminFloatingButton, styles.merchantDashboardButton]}
+                onPress={() => router.push('./merchant-page')}
+              >
+                <DashboardSvg width={32} height={32} />
+              </Pressable>
+            </>
+          )}
+          <Pressable
+            style={styles.adminToggleButton}
+            onPress={() => setAdminDropdownExpanded(!adminDropdownExpanded)}
+          >
+            <View style={[styles.arrowIcon, { transform: [{ rotate: adminDropdownExpanded ? '90deg' : '-90deg' }] }]}>
+              <ArrowRightSvg width={20} height={20} />
+            </View>
+          </Pressable>
+        </View>
       )}
 
       {/* Bottom Navigation */}
@@ -489,14 +511,17 @@ const styles = StyleSheet.create({
     color: '#999',
     lineHeight: 16,
   },
-  dashboardButton: {
+  adminFloatingContainer: {
     position: 'absolute',
     right: 20,
     bottom: 94,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#1A5D1A',
+    alignItems: 'center',
+    gap: 12,
+  },
+  adminFloatingButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -504,6 +529,29 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  adminDashboardButton: {
+    backgroundColor: '#1A5D1A',
+  },
+  merchantDashboardButton: {
+    backgroundColor: '#1A5D1A',
+  },
+  adminToggleButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F4FFC9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  arrowIcon: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   bottomNav: {
     position: 'absolute',
