@@ -1,7 +1,7 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, BackHandler, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { auth, db } from '../config/firebase';
@@ -58,6 +58,20 @@ export default function MerchantPage() {
     { label: 'Sun', value: 640 },
   ];
   const maxSalesValue = Math.max(...salesTrend.map(item => item.value));
+
+  // Handle hardware back button - prevent going back to auth screens
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        // Return true to prevent default back behavior (exit app instead)
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+      return () => subscription.remove();
+    }, [])
+  );
 
   useEffect(() => {
     loadMerchantProfile();
@@ -389,19 +403,19 @@ export default function MerchantPage() {
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <Pressable style={styles.navItem} onPress={() => router.push('./home-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./home-page')}>
           <HomeSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./best-seller-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./best-seller-page')}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./favorites-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./favorites-page')}>
           <FavouriteSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./recommend-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./recommend-page')}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./support-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./support-page')}>
           <SupportSvg width={28} height={28} />
         </Pressable>
       </View>

@@ -391,19 +391,19 @@ const incrementQuantity = (menuItemId: string) => {
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <Pressable style={styles.navButton} onPress={() => router.push('./home-page')}>
+        <Pressable style={styles.navButton} onPress={() => router.replace('/home-page')}>
           <HomeSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navButton} onPress={() => router.push('./best-seller-page')}>
+        <Pressable style={styles.navButton} onPress={() => router.replace('/best-seller-page')}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navButton} onPress={() => router.push('/favorites-page')}>
+        <Pressable style={styles.navButton} onPress={() => router.replace('/favorites-page')}>
           <FavouriteSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navButton} onPress={() => router.push('./recommend-page')}>
+        <Pressable style={styles.navButton} onPress={() => router.replace('/recommend-page')}>
           <RecommendationSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navButton} onPress={() => router.push('./support-page')}>
+        <Pressable style={styles.navButton} onPress={() => router.replace('/support-page')}>
           <SupportSvg width={28} height={28} />
         </Pressable>
       </View>

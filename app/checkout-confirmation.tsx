@@ -46,7 +46,7 @@ export default function CheckoutConfirmationScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.push('./home-page')}>
+        <Pressable style={styles.backButton} onPress={() => router.replace('/home-page')}>
           <BackArrowLeftSvg width={28} height={28} />
         </Pressable>
         <View style={styles.placeholder} />
@@ -88,7 +88,7 @@ export default function CheckoutConfirmationScreen() {
         <Text style={styles.deliveryText}>Delivery by Thu, 29th, 4:00 PM</Text>
 
         {/* Track Order Link */}
-        <Pressable onPress={() => router.push('./myorders-active')}>
+        <Pressable onPress={() => router.replace('/myorders-active')}>
           <Text style={styles.trackOrderText}>Track my order</Text>
         </Pressable>
 
@@ -100,19 +100,19 @@ export default function CheckoutConfirmationScreen() {
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <Pressable style={styles.navItem} onPress={() => router.push('./home-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('/home-page')}>
           <HomeSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./best-seller-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('/best-seller-page')}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('/favorites-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('/favorites-page')}>
           <FavouriteSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./recommend-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('/recommend-page')}>
           <RecommendationSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./support-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('/support-page')}>
           <SupportSvg width={28} height={28} />
         </Pressable>
       </View>

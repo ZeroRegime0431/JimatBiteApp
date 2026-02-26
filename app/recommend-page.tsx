@@ -216,7 +216,7 @@ export default function RecommendScreen() {
 
       {/* Top Navigation Bar */}
       <View style={styles.topNav}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => router.replace('/home-page')} style={styles.backButton}>
           <BackArrowLeftSvg width={24} height={24} />
         </Pressable>
         <View style={styles.titleContainer}>
@@ -319,19 +319,19 @@ export default function RecommendScreen() {
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <Pressable style={styles.navItem} onPress={() => router.push('./home-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./home-page')}>
           <HomeSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./best-seller-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./best-seller-page')}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./favorites-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./favorites-page')}>
           <FavouriteSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./recommend-page')}>
+        <Pressable style={styles.navItem}>
           <RecommendationSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./support-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('./support-page')}>
           <SupportSvg width={28} height={28} />
         </Pressable>
       </View>

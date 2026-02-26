@@ -48,7 +48,7 @@ export default function MerchantSignupStep3() {
 
   const handleBack = () => {
     // Pass current data back when going to previous step
-    router.push({
+    router.replace({
       pathname: "/merchant-signup-step2",
       params: {
         ...params,
@@ -81,7 +81,7 @@ export default function MerchantSignupStep3() {
 
   const handleNext = () => {
     // Navigate to next step without validation, preserving all data
-    router.push({
+    router.replace({
       pathname: "/merchant-signup-step4",
       params: {
         ...params,
@@ -122,7 +122,7 @@ export default function MerchantSignupStep3() {
     setError("");
 
     // Navigate to next step with accumulated data
-    router.push({
+    router.replace({
       pathname: "/merchant-signup-step4",
       params: {
         ...params,

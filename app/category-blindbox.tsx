@@ -145,13 +145,13 @@ export default function CategoryBlindBoxScreen() {
                   ]}
                   onPress={() => {
                     if (category.id === '2') {
-                      router.push('./category-meal');
+                      router.replace('/category-meal');
                     } else if (category.id === '3') {
-                      router.push('./category-vegan');
+                      router.replace('/category-vegan');
                     } else if (category.id === '4') {
-                      router.push('./category-dessert');
+                      router.replace('/category-dessert');
                     } else if (category.id === '5') {
-                      router.push('./category-drink');
+                      router.replace('/category-drink');
                     } else {
                       setSelectedCategory(category.id);
                     }
@@ -256,19 +256,19 @@ export default function CategoryBlindBoxScreen() {
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <Pressable style={styles.navItem} onPress={() => router.push('./home-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('/home-page')}>
           <HomeSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./best-seller-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('/best-seller-page')}>
           <BestsellingSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('/favorites-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('/favorites-page')}>
           <FavouriteSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./recommend-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('/recommend-page')}>
           <RecommendationSvg width={28} height={28} />
         </Pressable>
-        <Pressable style={styles.navItem} onPress={() => router.push('./support-page')}>
+        <Pressable style={styles.navItem} onPress={() => router.replace('/support-page')}>
           <SupportSvg width={28} height={28} />
         </Pressable>
       </View>
