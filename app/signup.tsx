@@ -17,9 +17,8 @@ import FingerprintSvg from '../assets/icons/fingerprint.svg';
 import GoogleSvg from '../assets/icons/google.svg';
 
 // Firebase Authentication and Database
-import { signUp } from '../services/auth';
+import { checkEmailVerified, resendVerificationEmail, signUp } from '../services/auth';
 import { createUserProfile } from '../services/database';
-import { registerForPushNotifications } from '../services/notifications';
 
 export default function SignupScreen() {
   const [fullName, setFullName] = useState("");
@@ -38,6 +37,11 @@ export default function SignupScreen() {
   const [selectedYear, setSelectedYear] = useState(2000);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState({ code: '+60', name: 'Malaysia', maxLength: 10 });
+  const [showVerificationScreen, setShowVerificationScreen] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const [userId, setUserId] = useState("");
+  const [checkingVerification, setCheckingVerification] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
 
   // Country codes with max phone number lengths
   const countryCodes = [
@@ -121,18 +125,12 @@ export default function SignupScreen() {
         
         await createUserProfile(result.user.uid, profileData);
         
-        // Register for push notifications
-        const notifResult = await registerForPushNotifications(result.user.uid);
-        if (notifResult.success) {
-          console.log('✓ Notifications registered successfully');
-          console.log('Push token:', notifResult.token);
-        } else {
-          console.log('✗ Notification registration failed:', notifResult.error);
-        }
+        // Store user info and show verification screen
+        setUserId(result.user.uid);
+        setUserEmail(email.trim());
+        setShowVerificationScreen(true);
         
-        console.log('Signup successful — navigating to onboarding');
-        // Navigate to onboarding for new users
-        router.replace("/onboarding");
+        console.log('Signup successful — verification email sent');
       } else {
         // Show error message from Firebase
         setError(result.error || "Signup failed. Please try again.");
@@ -147,6 +145,50 @@ export default function SignupScreen() {
 
   const handleGoToLogin = () => {
     router.push("/login");
+  };
+
+  const handleCheckVerification = async () => {
+    setCheckingVerification(true);
+    setError("");
+    
+    try {
+      const result = await checkEmailVerified();
+      
+      if (result.success && result.verified) {
+        // Email is verified, navigate to onboarding
+        console.log('Email verified — navigating to onboarding');
+        router.replace("/onboarding");
+      } else if (result.success && !result.verified) {
+        setError("Email not verified yet. Please check your inbox and click the verification link.");
+      } else {
+        setError(result.error || "Failed to check verification status.");
+      }
+    } catch (err) {
+      console.error('Check verification error:', err);
+      setError("An error occurred while checking verification.");
+    } finally {
+      setCheckingVerification(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setResendingEmail(true);
+    setError("");
+    
+    try {
+      const result = await resendVerificationEmail();
+      
+      if (result.success) {
+        setError("✅ Verification email sent! Please check your inbox.");
+      } else {
+        setError(result.error || "Failed to resend verification email.");
+      }
+    } catch (err) {
+      console.error('Resend verification error:', err);
+      setError("An error occurred while resending email.");
+    } finally {
+      setResendingEmail(false);
+    }
   };
 
   const handleDateConfirm = () => {
@@ -176,6 +218,74 @@ export default function SignupScreen() {
   const years = Array.from({ length: 81 }, (_, i) => 1970 + i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
+
+  // Show verification screen if user just signed up
+  if (showVerificationScreen) {
+    return (
+      <View style={styles.container}>
+        {/* Green header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Verify Your Email</Text>
+        </View>
+
+        {/* White body */}
+        <View style={styles.body}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.verificationContent}
+          >
+            <View style={styles.emailIcon}>
+              <Text style={styles.emailIconText}>📧</Text>
+            </View>
+
+            <Text style={styles.verificationTitle}>Check Your Email</Text>
+            
+            <Text style={styles.verificationText}>
+              We've sent a verification link to:
+            </Text>
+            
+            <Text style={styles.emailDisplay}>{userEmail}</Text>
+            
+            <Text style={styles.verificationText}>
+              Please click the link in the email to verify your account. 
+              After verifying, come back here and click "I've Verified My Email" to continue.
+            </Text>
+
+            {/* Error message */}
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <Pressable 
+              style={[styles.primaryButton, checkingVerification && styles.primaryButtonDisabled]} 
+              onPress={handleCheckVerification}
+              disabled={checkingVerification}
+            >
+              {checkingVerification ? (
+                <ActivityIndicator color="#1A5D1A" />
+              ) : (
+                <Text style={styles.primaryButtonText}>I've Verified My Email</Text>
+              )}
+            </Pressable>
+
+            <Pressable 
+              style={[styles.secondaryButton, resendingEmail && styles.secondaryButtonDisabled]} 
+              onPress={handleResendVerification}
+              disabled={resendingEmail}
+            >
+              {resendingEmail ? (
+                <ActivityIndicator color="#245B2A" />
+              ) : (
+                <Text style={styles.secondaryButtonText}>Resend Verification Email</Text>
+              )}
+            </Pressable>
+
+            <Text style={styles.verificationNote}>
+              💡 Tip: Check your spam folder if you don't see the email.
+            </Text>
+          </ScrollView>
+        </View>
+      </View>
+    );
+  }
  
   return (
     <View style={styles.container}>
@@ -810,5 +920,68 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#245B2A",
+  },
+  verificationContent: {
+    paddingTop: 40,
+    paddingBottom: 24,
+    alignItems: "center",
+  },
+  emailIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#F7FFD4",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  emailIconText: {
+    fontSize: 50,
+  },
+  verificationTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#245B2A",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  verificationText: {
+    fontSize: 14,
+    color: "#555",
+    textAlign: "center",
+    marginBottom: 12,
+    paddingHorizontal: 20,
+    lineHeight: 22,
+  },
+  emailDisplay: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#245B2A",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  secondaryButton: {
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 12,
+    borderRadius: 999,
+    alignItems: "center",
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: "#245B2A",
+  },
+  secondaryButtonDisabled: {
+    opacity: 0.6,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#245B2A",
+  },
+  verificationNote: {
+    fontSize: 12,
+    color: "#888",
+    textAlign: "center",
+    marginTop: 20,
+    fontStyle: "italic",
   },
 });
