@@ -2,13 +2,15 @@
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    View
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View
 } from "react-native";
 
 export default function MerchantSignupStep3() {
@@ -154,11 +156,16 @@ export default function MerchantSignupStep3() {
 
       {/* White body */}
       <View style={styles.body}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.bodyContent}
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.keyboardView}
         >
-          <Text style={styles.label}>Address Line 1</Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.bodyContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={styles.label}>Address Line 1</Text>
           <TextInput
             placeholder="Street/Building"
             style={styles.input}
@@ -280,7 +287,8 @@ export default function MerchantSignupStep3() {
               <Text style={styles.bottomLink}>Log in</Text>
             </Pressable>
           </View>
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </View>
     </View>
   );
@@ -292,6 +300,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F7FFD4",
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     height: HEADER_HEIGHT,

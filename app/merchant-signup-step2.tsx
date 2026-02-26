@@ -3,13 +3,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
 } from "react-native";
 
 export default function MerchantSignupStep2() {
@@ -154,11 +156,16 @@ export default function MerchantSignupStep2() {
 
       {/* White body */}
       <View style={styles.body}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.bodyContent}
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.keyboardView}
         >
-          <Text style={styles.label}>Store / Business Name</Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.bodyContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={styles.label}>Store / Business Name</Text>
           <TextInput
             placeholder="eg. nasi kandar"
             style={styles.input}
@@ -242,7 +249,8 @@ export default function MerchantSignupStep2() {
               <Text style={styles.bottomLink}>Log in</Text>
             </Pressable>
           </View>
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </View>
     </View>
   );
@@ -254,6 +262,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F7FFD4",
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     height: HEADER_HEIGHT,
