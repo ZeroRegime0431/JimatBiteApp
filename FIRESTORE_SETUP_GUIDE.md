@@ -526,4 +526,4 @@ service cloud.firestore {
 
 **Your Firestore is now ready! 🎉**
 
-All payment methods and cart items are now stored securely in the cloud!
+All payment methods and cart items are now stored securely in the cloud
