@@ -381,6 +381,12 @@ export default function OrderDetailsScreen() {
                     <Text style={styles.itemName}>{item.name}</Text>
                     <Text style={styles.itemRestaurant}>{item.restaurantName}</Text>
                     <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
+                    {item.notes && item.notes.trim() && (
+                      <View style={styles.notesContainer}>
+                        <Text style={styles.notesLabel}>Note: </Text>
+                        <Text style={styles.notesText}>{item.notes}</Text>
+                      </View>
+                    )}
                   </View>
                   <Text style={styles.itemPrice}>${(item.price * item.quantity).toFixed(2)}</Text>
                 </View>
@@ -726,6 +732,25 @@ const styles = StyleSheet.create({
   itemQuantity: {
     fontSize: 12,
     color: '#666',
+  },
+  notesContainer: {
+    backgroundColor: '#FFF9E6',
+    padding: 8,
+    borderRadius: 6,
+    marginTop: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FFD700',
+  },
+  notesLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B8860B',
+    marginBottom: 2,
+  },
+  notesText: {
+    fontSize: 11,
+    color: '#666',
+    lineHeight: 16,
   },
   itemPrice: {
     fontSize: 14,

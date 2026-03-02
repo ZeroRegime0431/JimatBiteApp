@@ -45,6 +45,7 @@ export interface CartItem {
   imageURL: string;
   restaurantId: string;
   restaurantName: string;
+  notes?: string; // Customer notes to the seller
 }
 
 export interface Cart {
