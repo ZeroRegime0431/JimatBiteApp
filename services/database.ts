@@ -240,22 +240,22 @@ export const saveCart = async (
         restaurantName: item.restaurantName,
       };
       
-      // Remove any undefined values
-      Object.keys(cleanedItem).forEach(key => {
-        if (cleanedItem[key] === undefined) {
-          delete cleanedItem[key];
-        }
-      });
+      // Add notes if it exists
+      if (item.notes) {
+        cleanedItem.notes = item.notes;
+      }
       
       return cleanedItem;
     });
     
-    await setDoc(cartRef, {
+    const cartDataToSave = {
       userId,
       items: cleanedItems,
       totalAmount: cart.totalAmount || 0,
       updatedAt: serverTimestamp(),
-    });
+    };
+    
+    await setDoc(cartRef, cartDataToSave);
     return { success: true };
   } catch (error: any) {
     console.error('Error saving cart:', error);
@@ -270,12 +270,29 @@ export const getCart = async (userId: string): Promise<{ success: boolean; data?
     
     if (cartSnap.exists()) {
       const data = cartSnap.data();
+      
+      // Explicitly map items to preserve all fields including notes
+      const items = data.items.map((item: any) => ({
+        menuItemId: item.menuItemId,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        imageURL: item.imageURL,
+        restaurantId: item.restaurantId,
+        restaurantName: item.restaurantName,
+        ...(item.notes && { notes: item.notes }), // Include notes if present
+      }));
+      
+      const cartData: Cart = {
+        userId: data.userId,
+        items: items,
+        totalAmount: data.totalAmount,
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      };
+      
       return { 
         success: true, 
-        data: {
-          ...data,
-          updatedAt: data.updatedAt?.toDate(),
-        } as Cart 
+        data: cartData
       };
     } else {
       return { success: true, data: { userId, items: [], totalAmount: 0, updatedAt: new Date() } };

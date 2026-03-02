@@ -164,8 +164,16 @@ export default function MenuItemDetailScreen() {
       );
 
       if (existingItemIndex >= 0) {
-        // Item exists, update quantity
+        // Item exists, update quantity and notes
         cart.items[existingItemIndex].quantity += quantity;
+        // Update notes if provided (append or replace)
+        if (notes.trim()) {
+          if (cart.items[existingItemIndex].notes) {
+            cart.items[existingItemIndex].notes += `\n${notes.trim()}`;
+          } else {
+            cart.items[existingItemIndex].notes = notes.trim();
+          }
+        }
         setCartQuantity(cart.items[existingItemIndex].quantity);
       } else {
         // New item, add to cart
@@ -177,6 +185,7 @@ export default function MenuItemDetailScreen() {
           imageURL: item.imageURL,
           restaurantId: item.restaurantId,
           restaurantName: item.restaurantName,
+          notes: notes.trim() || undefined, // Add notes if provided
         };
         cart.items.push(newCartItem);
         setIsInCart(true);
@@ -191,6 +200,7 @@ export default function MenuItemDetailScreen() {
 
       await saveCart(user.uid, cart);
       setQuantity(1); // Reset quantity selector
+      setNotes(''); // Reset notes field
     }
     
     setLoading(false);

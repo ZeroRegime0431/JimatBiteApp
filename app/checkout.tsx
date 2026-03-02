@@ -268,6 +268,12 @@ const incrementQuantity = (menuItemId: string) => {
             <View style={styles.itemDetails}>
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemRestaurant}>{item.restaurantName}</Text>
+              {item.notes && item.notes.trim() && (
+                <View style={styles.notesContainer}>
+                  <Text style={styles.notesLabel}>Note: </Text>
+                  <Text style={styles.notesText}>{item.notes}</Text>
+                </View>
+              )}
               <Pressable onPress={() => cancelOrder(item.menuItemId)}>
                 <Text style={styles.cancelText}>Cancel Order</Text>
               </Pressable>
@@ -508,6 +514,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginBottom: 5,
+  },
+  notesContainer: {
+    flexDirection: 'row',
+    marginTop: 4,
+    marginBottom: 5,
+    backgroundColor: '#FFF9E6',
+    padding: 6,
+    borderRadius: 4,
+    borderLeftWidth: 2,
+    borderLeftColor: '#FFA500',
+  },
+  notesLabel: {
+    fontSize: 11,
+    color: '#666',
+    fontWeight: '600',
+  },
+  notesText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#555',
+    fontStyle: 'italic',
   },
   itemDate: {
     fontSize: 12,
