@@ -1,0 +1,75 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules for JimatBite
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && request.auth.uid == 'a5L1LZoUCEZxcCeeWxFW7vIow323';
+    }
+    
+    // Helper function to check if user is the owner of the merchant folder
+    function isMerchantOwner(merchantFolder) {
+      // For now, we're using store names as folder names
+      // In the future, consider using UID for folder names
+      return isAuthenticated();
+    }
+    
+    // Helper function to validate file types for uploads
+    function isValidImageOrPDF() {
+      return request.resource.contentType.matches('image/.*') || 
+             request.resource.contentType == 'application/pdf';
+    }
+    
+    // Helper function to validate file size (max 10MB)
+    function isValidSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // Rule for merchant uploads folder
+    match /merchants/{merchantFolder}/{document} {
+      
+      // Allow read access:
+      // - Admin can read all merchant files
+      // - Authenticated users can read (for displaying logos, etc.)
+      allow read: if isAuthenticated();
+      
+      // Allow write access (create/update):
+      // - During signup, authenticated users can upload to their folder
+      // - Admin can upload/update any merchant's files
+      allow write: if (isAuthenticated() && isValidImageOrPDF() && isValidSize()) || isAdmin();
+      
+      // Allow delete:
+      // - Only admin can delete merchant files
+      allow delete: if isAdmin();
+    }
+    
+    // Rule for menu item images (if you decide to store them)
+    match /menu-items/{itemId}/{image} {
+      allow read: if true; // Public read for menu items
+      allow write: if isAuthenticated() && isValidImageOrPDF() && isValidSize();
+      allow delete: if isAdmin();
+    }
+    
+    // Rule for user profile images
+    match /users/{userId}/{image} {
+      allow read: if true; // Public read for profile images
+      allow write: if isAuthenticated() && 
+                     request.auth.uid == userId && 
+                     isValidImageOrPDF() && 
+                     isValidSize();
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Default rule: deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

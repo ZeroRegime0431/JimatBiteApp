@@ -3,12 +3,15 @@ import { collection, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { db } from '../config/firebase';
-import { getMenuItems } from '../services/database';
-import type { MenuItem, Order, Review } from '../types';
+import { auth, db } from '../config/firebase';
+import { getMenuItems, getMerchantProfile } from '../services/database';
+import type { MenuItem, MerchantAccount, Order, Review } from '../types';
 
 import ArrowRightSvg from '../assets/Settings/icons/redarrowright.svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
+
+// Admin merchant ID - can see all menu items
+const ADMIN_MERCHANT_ID = 'a5L1LZoUCEZxcCeeWxFW7vIow323';
 
 type ItemStats = {
 	menuItem: MenuItem;
@@ -29,16 +32,54 @@ export default function MerchantMenuItemsPage() {
 	const [restaurantsExpanded, setRestaurantsExpanded] = useState(true);
 	const [restaurantExpandedMap, setRestaurantExpandedMap] = useState<Record<string, boolean>>({});
 	const [restaurants, setRestaurants] = useState<RestaurantGroup[]>([]);
+	const [merchantProfile, setMerchantProfile] = useState<MerchantAccount | null>(null);
+	const [isAdmin, setIsAdmin] = useState(false);
 
 	useEffect(() => {
-		loadMenuItems();
+		loadMerchantProfileAndItems();
 	}, []);
 
-	const loadMenuItems = async () => {
+	const loadMerchantProfileAndItems = async () => {
 		try {
 			setLoading(true);
+			const currentUser = auth.currentUser;
+			
+			if (!currentUser) {
+				console.error('No user logged in');
+				setLoading(false);
+				return;
+			}
+
+			// Check if user is admin
+			const isAdminUser = currentUser.uid === ADMIN_MERCHANT_ID;
+			setIsAdmin(isAdminUser);
+
+			// Load merchant profile
+			const profileResult = await getMerchantProfile(currentUser.uid);
+			if (profileResult.success && profileResult.data) {
+				setMerchantProfile(profileResult.data);
+				await loadMenuItems(profileResult.data, isAdminUser);
+			} else {
+				console.error('Failed to load merchant profile:', profileResult.error);
+				setLoading(false);
+			}
+		} catch (error) {
+			console.error('Error loading merchant profile:', error);
+			setLoading(false);
+		}
+	};
+
+	const loadMenuItems = async (profile: MerchantAccount, isAdminUser: boolean) => {
+		try {
 			const menuResult = await getMenuItems();
-			const menuItems = menuResult.success && menuResult.data ? menuResult.data : [];
+			let menuItems = menuResult.success && menuResult.data ? menuResult.data : [];
+
+			// Filter menu items by restaurant name if not admin
+			if (!isAdminUser && profile.storeName) {
+				menuItems = menuItems.filter(
+					(item) => item.restaurantName === profile.storeName
+				);
+			}
 
 			const ordersSnapshot = await getDocs(collection(db, 'orders'));
 			const reviewsSnapshot = await getDocs(collection(db, 'reviews'));
@@ -175,7 +216,12 @@ export default function MerchantMenuItemsPage() {
 				<Pressable style={styles.backButton} onPress={() => router.back()}>
 					<BackArrowLeftSvg width={22} height={22} />
 				</Pressable>
-				<Text style={styles.headerTitle}>Menu Items</Text>
+				<View style={styles.headerTitleContainer}>
+					<Text style={styles.headerTitle}>Menu Items</Text>
+					{!isAdmin && merchantProfile && (
+						<Text style={styles.headerSubtitle}>{merchantProfile.storeName}</Text>
+					)}
+				</View>
 				<View style={styles.backButton} />
 			</View>
 
@@ -274,10 +320,20 @@ const styles = StyleSheet.create({
 	backButton: {
 		width: 32,
 	},
+	headerTitleContainer: {
+		alignItems: 'center',
+		flex: 1,
+	},
 	headerTitle: {
 		fontSize: 20,
 		fontWeight: '700',
 		color: '#1A5D1A',
+	},
+	headerSubtitle: {
+		fontSize: 12,
+		fontWeight: '500',
+		color: '#6B7280',
+		marginTop: 2,
 	},
 	scrollContent: {
 		paddingHorizontal: 16,

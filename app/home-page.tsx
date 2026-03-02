@@ -638,17 +638,19 @@ export default function HomePage() {
         </View>
       </ScrollView>
 
-      {/* Admin Dashboard Floating Buttons */}
-      {isAdmin && (
+      {/* Admin & Merchant Dashboard Floating Buttons */}
+      {(isAdmin || isMerchant) && (
         <View style={styles.adminFloatingContainer}>
           {adminDropdownExpanded && (
             <>
-              <Pressable
-                style={[styles.adminFloatingButton, styles.adminDashboardButton]}
-                onPress={() => router.push('./admin-dashboard')}
-              >
-                <AdminSvg width={32} height={32} />
-              </Pressable>
+              {isAdmin && (
+                <Pressable
+                  style={[styles.adminFloatingButton, styles.adminDashboardButton]}
+                  onPress={() => router.push('./admin-dashboard')}
+                >
+                  <AdminSvg width={32} height={32} />
+                </Pressable>
+              )}
               <Pressable
                 style={[styles.adminFloatingButton, styles.merchantDashboardButton]}
                 onPress={() => router.push('./merchant-page')}

@@ -23,6 +23,9 @@ import SupportSvg from '../assets/HomePage/icons/support.svg';
 import ArrowRightSvg from '../assets/Settings/icons/redarrowright.svg';
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 
+// Admin merchant ID - can see all orders
+const ADMIN_MERCHANT_ID = 'a5L1LZoUCEZxcCeeWxFW7vIow323';
+
 const { width } = Dimensions.get('window');
 
 export default function MerchantPage() {
@@ -44,22 +47,13 @@ export default function MerchantPage() {
   const [cancelledOrders, setCancelledOrders] = useState<Order[]>([]);
   const [userNames, setUserNames] = useState<{ [userId: string]: string }>({});
   
-  // Sales stats (dummy values for now)
-  const [todaySales, setTodaySales] = useState(1250.50);
-  const [weeklySales, setWeeklySales] = useState(8750.25);
-  const [monthlySales, setMonthlySales] = useState(35420.80);
+  // Sales stats (calculated from real data)
+  const [todaySales, setTodaySales] = useState(0);
+  const [weeklySales, setWeeklySales] = useState(0);
+  const [monthlySales, setMonthlySales] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
-
-  const salesTrend = [
-    { label: 'Mon', value: 420 },
-    { label: 'Tue', value: 560 },
-    { label: 'Wed', value: 380 },
-    { label: 'Thu', value: 690 },
-    { label: 'Fri', value: 760 },
-    { label: 'Sat', value: 920 },
-    { label: 'Sun', value: 640 },
-  ];
-  const maxSalesValue = Math.max(...salesTrend.map(item => item.value));
+  const [salesTrend, setSalesTrend] = useState<{ label: string; value: number }[]>([]);
+  const maxSalesValue = salesTrend.length > 0 ? Math.max(...salesTrend.map(item => item.value)) : 1;
 
   // Handle hardware back button - prevent going back to auth screens
   useFocusEffect(
@@ -77,9 +71,15 @@ export default function MerchantPage() {
 
   useEffect(() => {
     loadMerchantProfile();
-    loadOrders();
     loadBannerDismissalState();
   }, []);
+
+  // Load orders after merchant profile is loaded
+  useEffect(() => {
+    if (merchantProfile) {
+      loadOrders();
+    }
+  }, [merchantProfile]);
 
   const loadBannerDismissalState = async () => {
     try {
@@ -122,6 +122,17 @@ export default function MerchantPage() {
   const loadOrders = async () => {
     try {
       setLoading(true);
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser) {
+        console.error('No user logged in');
+        setLoading(false);
+        return;
+      }
+
+      // Check if user is admin
+      const isAdmin = currentUser.uid === ADMIN_MERCHANT_ID;
+      
       const ordersRef = collection(db, 'orders');
       
       // Fetch all orders
@@ -140,6 +151,14 @@ export default function MerchantPage() {
           estimatedDeliveryTime: data.estimatedDeliveryTime?.toDate(),
           actualDeliveryTime: data.actualDeliveryTime?.toDate(),
         } as Order;
+        
+        // Filter orders by restaurant name if not admin
+        if (!isAdmin && merchantProfile) {
+          // Only show orders for this merchant's restaurant
+          if (order.restaurantName !== merchantProfile.storeName) {
+            return; // Skip this order
+          }
+        }
         
         userIds.add(order.userId);
         
@@ -181,11 +200,72 @@ export default function MerchantPage() {
       setCancelledOrders(cancelled);
       setTotalOrders(pending.length + completed.length + cancelled.length);
       
+      // Calculate sales statistics from completed orders
+      calculateSalesStats([...pending, ...completed, ...cancelled], isAdmin);
+      
     } catch (error) {
       console.error('Error loading orders:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const calculateSalesStats = (allOrders: Order[], isAdmin: boolean) => {
+    // Only count delivered orders for sales calculations
+    const deliveredOrders = allOrders.filter(order => order.status === 'delivered');
+    
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    let todayRevenue = 0;
+    let weekRevenue = 0;
+    let monthRevenue = 0;
+    
+    // Calculate sales for different periods
+    deliveredOrders.forEach(order => {
+      const orderTime = order.orderDate.getTime();
+      
+      if (orderTime >= todayStart.getTime()) {
+        todayRevenue += order.grandTotal;
+      }
+      if (orderTime >= weekStart.getTime()) {
+        weekRevenue += order.grandTotal;
+      }
+      if (orderTime >= monthStart.getTime()) {
+        monthRevenue += order.grandTotal;
+      }
+    });
+    
+    setTodaySales(todayRevenue);
+    setWeeklySales(weekRevenue);
+    setMonthlySales(monthRevenue);
+    
+    // Generate 7-day sales trend
+    const trend: { label: string; value: number }[] = [];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    for (let i = 6; i >= 0; i--) {
+      const dayDate = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayStart = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate());
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      
+      let dayRevenue = 0;
+      deliveredOrders.forEach(order => {
+        const orderTime = order.orderDate.getTime();
+        if (orderTime >= dayStart.getTime() && orderTime < dayEnd.getTime()) {
+          dayRevenue += order.grandTotal;
+        }
+      });
+      
+      trend.push({
+        label: dayNames[dayDate.getDay()],
+        value: dayRevenue
+      });
+    }
+    
+    setSalesTrend(trend);
   };
 
   const formatDate = (date: Date) => {
@@ -306,7 +386,7 @@ export default function MerchantPage() {
         <View style={styles.chartCard}>
           <View style={styles.chartHeader}>
             <ThemedText style={styles.chartTitle}>Weekly Sales Trend</ThemedText>
-            <ThemedText style={styles.chartSubtitle}>Dummy data</ThemedText>
+            <ThemedText style={styles.chartSubtitle}>Last 7 days</ThemedText>
           </View>
           <View style={styles.chartArea}>
             {salesTrend.map((item) => {

@@ -18,6 +18,7 @@ import {
 
 import { signUp } from '../services/auth';
 import { createMerchantProfile } from '../services/database';
+import { uploadMerchantDocuments } from '../services/storage';
 
 export default function MerchantSignupStep4() {
   const params = useLocalSearchParams();
@@ -181,6 +182,21 @@ export default function MerchantSignupStep4() {
     setLoading(true);
 
     try {
+      // Upload files to Firebase Storage first
+      const storeName = params.storeName as string;
+      const uploadResult = await uploadMerchantDocuments(
+        storeName,
+        params.logoUri as string | undefined,
+        businessLicenseUri || undefined,
+        ownerIDUri || undefined
+      );
+
+      if (!uploadResult.success) {
+        setError(uploadResult.error || "Failed to upload files. Please try again.");
+        setLoading(false);
+        return;
+      }
+
       // Create Firebase Auth account
       const result = await signUp(
         params.email as string, 
@@ -233,8 +249,9 @@ export default function MerchantSignupStep4() {
           merchantData.addressLine2 = (params.addressLine2 as string).trim();
         }
 
-        if (params.logoUri && (params.logoUri as string).trim()) {
-          merchantData.logoURL = (params.logoUri as string).trim();
+        // Add uploaded logo URL from Firebase Storage
+        if (uploadResult.logoURL) {
+          merchantData.logoURL = uploadResult.logoURL;
         }
 
         // Add business hours details if not 24/7
@@ -247,14 +264,14 @@ export default function MerchantSignupStep4() {
           }
         }
 
-        // Add documents if uploaded
-        if (businessLicenseUri || ownerIDUri) {
+        // Add uploaded document URLs from Firebase Storage
+        if (uploadResult.businessLicenseURL || uploadResult.ownerIDURL) {
           merchantData.documents = {};
-          if (businessLicenseUri) {
-            merchantData.documents.businessLicense = businessLicenseUri;
+          if (uploadResult.businessLicenseURL) {
+            merchantData.documents.businessLicense = uploadResult.businessLicenseURL;
           }
-          if (ownerIDUri) {
-            merchantData.documents.ownerID = ownerIDUri;
+          if (uploadResult.ownerIDURL) {
+            merchantData.documents.ownerID = uploadResult.ownerIDURL;
           }
         }
 
