@@ -579,7 +579,10 @@ export const getMenuItems = async (
       const data = doc.data();
       menuItems.push({
         ...data,
-        createdAt: data.createdAt?.toDate(),
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : undefined,
+        preparedTime: data.preparedTime?.toDate ? data.preparedTime.toDate() : undefined,
+        expiryTime: data.expiryTime?.toDate ? data.expiryTime.toDate() : undefined,
+        lastPriceUpdate: data.lastPriceUpdate?.toDate ? data.lastPriceUpdate.toDate() : undefined,
       } as MenuItem);
     });
     
@@ -603,7 +606,10 @@ export const getMenuItem = async (
         success: true, 
         data: {
           ...data,
-          createdAt: data.createdAt?.toDate(),
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : undefined,
+          preparedTime: data.preparedTime?.toDate ? data.preparedTime.toDate() : undefined,
+          expiryTime: data.expiryTime?.toDate ? data.expiryTime.toDate() : undefined,
+          lastPriceUpdate: data.lastPriceUpdate?.toDate ? data.lastPriceUpdate.toDate() : undefined,
         } as MenuItem 
       };
     } else {
@@ -617,6 +623,32 @@ export const getMenuItem = async (
 
 // ============= FAVORITES =============
 
+// Helper function to remove undefined values from objects (Firestore doesn't accept undefined)
+const removeUndefinedFields = (obj: any): any => {
+  if (obj === null || obj === undefined) {
+    return null;
+  }
+  
+  if (typeof obj !== 'object') {
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefinedFields).filter(item => item !== undefined);
+  }
+  
+  const cleaned: any = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      const value = removeUndefinedFields(obj[key]);
+      if (value !== undefined) {
+        cleaned[key] = value;
+      }
+    }
+  }
+  return cleaned;
+};
+
 export const addFavorite = async (
   userId: string,
   menuItem: MenuItem
@@ -626,11 +658,14 @@ export const addFavorite = async (
       return { success: false, error: 'Invalid menu item: missing id' };
     }
     
+    // Remove undefined fields to prevent Firestore errors
+    const cleanedMenuItem = removeUndefinedFields(menuItem);
+    
     const favoriteRef = doc(db, 'favorites', `${userId}_${menuItem.id}`);
     await setDoc(favoriteRef, {
       userId,
       menuItemId: menuItem.id,
-      menuItem,
+      menuItem: cleanedMenuItem,
       createdAt: serverTimestamp(),
     });
     return { success: true };
@@ -669,6 +704,9 @@ export const getFavorites = async (
         favorites.push({
           ...data.menuItem,
           createdAt: data.menuItem.createdAt?.toDate ? data.menuItem.createdAt.toDate() : data.menuItem.createdAt,
+          preparedTime: data.menuItem.preparedTime?.toDate ? data.menuItem.preparedTime.toDate() : data.menuItem.preparedTime,
+          expiryTime: data.menuItem.expiryTime?.toDate ? data.menuItem.expiryTime.toDate() : data.menuItem.expiryTime,
+          lastPriceUpdate: data.menuItem.lastPriceUpdate?.toDate ? data.menuItem.lastPriceUpdate.toDate() : data.menuItem.lastPriceUpdate,
         } as MenuItem);
       }
     });

@@ -279,7 +279,7 @@ const incrementQuantity = (menuItemId: string) => {
               </Pressable>
             </View>
             <View style={styles.itemRight}>
-              <Text style={styles.itemPrice}>${(isPromoApplied ? item.price * 0.5 : item.price).toFixed(2)}</Text>
+              <Text style={styles.itemPrice}>RM{(isPromoApplied ? item.price * 0.5 : item.price).toFixed(2)}</Text>
               <View style={styles.quantityControl}>
                 <Pressable 
                   style={styles.quantityButton}
@@ -345,25 +345,25 @@ const incrementQuantity = (menuItemId: string) => {
         <View style={styles.summaryContainer}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>${subtotal.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>RM{subtotal.toFixed(2)}</Text>
           </View>
           {discount > 0 && (
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Discount</Text>
-              <Text style={styles.summaryValue}>-${discount.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>-RM{discount.toFixed(2)}</Text>
             </View>
           )}
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Tax and Fees</Text>
-            <Text style={styles.summaryValue}>${taxAndFees.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>RM{taxAndFees.toFixed(2)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Delivery</Text>
-            <Text style={styles.summaryValue}>${delivery.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>RM{delivery.toFixed(2)}</Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+            <Text style={styles.totalValue}>RM{total.toFixed(2)}</Text>
           </View>
         </View>
 

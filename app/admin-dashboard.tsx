@@ -281,7 +281,7 @@ export default function AdminDashboard() {
         <ThemedText style={styles.restaurantName}>{order.restaurantName}</ThemedText>
         <View style={styles.orderDetails}>
           <ThemedText style={styles.itemCount}>{order.items.length} items</ThemedText>
-          <ThemedText style={styles.orderTotal}>${order.grandTotal.toFixed(2)}</ThemedText>
+          <ThemedText style={styles.orderTotal}>RM{order.grandTotal.toFixed(2)}</ThemedText>
         </View>
         <View style={styles.orderFooter}>
           <ThemedText style={styles.customerName}>Customer: {customerName}</ThemedText>
@@ -315,7 +315,7 @@ export default function AdminDashboard() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => router.replace('/home-page')} style={styles.backButton}>
           <BackArrowLeftSvg width={24} height={24} />
         </Pressable>
         <ThemedText type="title" style={styles.headerTitle}>Admin Dashboard</ThemedText>
@@ -368,6 +368,19 @@ export default function AdminDashboard() {
             onPress={() => router.push('./chat-list')}
           >
             <ThemedText style={styles.chatButtonText}>View All Messages</ThemedText>
+          </Pressable>
+        </View>
+
+        {/* Dynamic Pricing Configuration Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionTitle}>Dynamic Pricing Configuration</ThemedText>
+          </View>
+          <Pressable
+            style={styles.discountConfigButton}
+            onPress={() => router.push('./discount-config')}
+          >
+            <ThemedText style={styles.discountConfigButtonText}>⚙️ Configure Discounts</ThemedText>
           </Pressable>
         </View>
 
@@ -661,6 +674,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chatButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  discountConfigButton: {
+    backgroundColor: '#1A5D1A',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  discountConfigButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',

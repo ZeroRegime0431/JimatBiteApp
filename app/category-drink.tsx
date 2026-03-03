@@ -227,6 +227,14 @@ export default function CategoryDrinkScreen() {
                       restaurantName: item.restaurantName,
                       rating: item.rating?.toString() || '0',
                       isAvailable: item.isAvailable.toString(),
+                      // Dynamic Pricing Fields
+                      originalPrice: item.originalPrice?.toString(),
+                      currentPrice: item.currentPrice?.toString(),
+                      dynamicPricingEnabled: item.dynamicPricingEnabled?.toString(),
+                      preparedTime: item.preparedTime instanceof Date ? item.preparedTime.toISOString() : undefined,
+                      expiryTime: item.expiryTime instanceof Date ? item.expiryTime.toISOString() : undefined,
+                      freshnessHours: item.freshnessHours?.toString(),
+                      freshnessStatus: item.freshnessStatus,
                     }
                   })}
                 >
@@ -246,7 +254,16 @@ export default function CategoryDrinkScreen() {
                   <View style={styles.foodInfo}>
                     <View style={styles.foodHeader}>
                       <Text style={styles.foodName}>{item.name}</Text>
-                      <Text style={styles.foodPrice}>${item.price.toFixed(2)}</Text>
+                      <View style={styles.priceContainer}>
+                        {item.dynamicPricingEnabled && item.originalPrice && item.currentPrice && item.currentPrice < item.originalPrice ? (
+                          <>
+                            <Text style={styles.originalPriceText}>RM{item.originalPrice.toFixed(2)}</Text>
+                            <Text style={styles.foodPrice}>RM{item.currentPrice.toFixed(2)}</Text>
+                          </>
+                        ) : (
+                          <Text style={styles.foodPrice}>RM{item.price.toFixed(2)}</Text>
+                        )}
+                      </View>
                     </View>
                     <View style={styles.foodMeta}>
                       <View style={styles.ratingContainer}>
@@ -473,8 +490,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    overflow: 'hidden',
+    overflow: 'hidden',    position: 'relative',
   },
+  badgeOverlay: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  freshBadge: {
+    backgroundColor: '#4CAF50',
+  },
+  discountedBadge: {
+    backgroundColor: '#FF9800',
+  },
+  expiringSoonBadge: {
+    backgroundColor: '#F44336',
+  },
+  statusBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',  },
   foodImage: {
     width: '100%',
     height: '100%',
@@ -536,10 +576,21 @@ const styles = StyleSheet.create({
     color: '#333',
     flex: 1,
   },
+  priceContainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 2,
+  },
   foodPrice: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#4CAF50',
+  },
+  originalPriceText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#999',
+    textDecorationLine: 'line-through',
   },
   foodMeta: {
     flexDirection: 'row',

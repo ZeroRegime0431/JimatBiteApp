@@ -1,19 +1,19 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { collection, doc, getDocs, query, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    Image,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
 } from 'react-native';
 import { db, storage } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
@@ -39,6 +39,12 @@ export default function AddMenuItemScreen() {
   const [currentTime, setCurrentTime] = useState('');
   const [totalRestaurants, setTotalRestaurants] = useState(0);
   const [totalCategoryItems, setTotalCategoryItems] = useState(0);
+  
+  // Dynamic Pricing Fields
+  const [dynamicPricingEnabled, setDynamicPricingEnabled] = useState(false);
+  const [freshnessHours, setFreshnessHours] = useState('8');
+  const [preparedTimeInput, setPreparedTimeInput] = useState('');
+  const [expiryTimeInput, setExpiryTimeInput] = useState('');
 
   React.useEffect(() => {
     const updateTime = () => {
@@ -247,6 +253,73 @@ export default function AddMenuItemScreen() {
       // Upload image first
       const imageURL = await uploadImageToStorage(imageUri);
 
+      // Calculate dynamic pricing fields if enabled
+      const now = new Date();
+      
+      // Parse prepared time (format: YYYY-MM-DD HH:MM)
+      let preparedTime: Date;
+      if (dynamicPricingEnabled && preparedTimeInput.trim()) {
+        try {
+          // Parse format like "2026-03-03 09:00"
+          const [datePart, timePart] = preparedTimeInput.trim().split(' ');
+          const [year, month, day] = datePart.split('-').map(Number);
+          const [hour, minute] = timePart.split(':').map(Number);
+          preparedTime = new Date(year, month - 1, day, hour, minute);
+          
+          if (isNaN(preparedTime.getTime())) {
+            throw new Error('Invalid date');
+          }
+        } catch (error) {
+          Alert.alert('Error', 'Invalid Prepared Time format. Use: YYYY-MM-DD HH:MM (e.g., 2026-03-03 09:00)');
+          setLoading(false);
+          return;
+        }
+      } else {
+        preparedTime = now;
+      }
+      
+      // Parse expiry time (format: YYYY-MM-DD HH:MM)
+      let expiryTime: Date;
+      if (dynamicPricingEnabled && expiryTimeInput.trim()) {
+        try {
+          // Parse format like "2026-03-15 09:00"
+          const [datePart, timePart] = expiryTimeInput.trim().split(' ');
+          const [year, month, day] = datePart.split('-').map(Number);
+          const [hour, minute] = timePart.split(':').map(Number);
+          expiryTime = new Date(year, month - 1, day, hour, minute);
+          
+          if (isNaN(expiryTime.getTime())) {
+            throw new Error('Invalid date');
+          }
+          
+          // Validate expiry is after prepared
+          if (expiryTime <= preparedTime) {
+            Alert.alert('Error', 'Expiry time must be after prepared time');
+            setLoading(false);
+            return;
+          }
+        } catch (error) {
+          Alert.alert('Error', 'Invalid Expiry Time format. Use: YYYY-MM-DD HH:MM (e.g., 2026-03-15 09:00)');
+          setLoading(false);
+          return;
+        }
+      } else {
+        const hours = parseFloat(freshnessHours) || 8;
+        expiryTime = new Date(preparedTime.getTime() + (hours * 60 * 60 * 1000));
+      }
+      
+      // Calculate freshness hours from the times
+      const hours = (expiryTime.getTime() - preparedTime.getTime()) / (1000 * 60 * 60);
+      
+      // Default discount rules
+      const discountRules = {
+        tier1: { hours: 2, discount: 0 },      // 0-2 hours: Full price
+        tier2: { hours: 4, discount: 10 },     // 2-4 hours: 10% off
+        tier3: { hours: 6, discount: 25 },     // 4-6 hours: 25% off
+        tier4: { hours: 8, discount: 40 },     // 6-8 hours: 40% off
+        tier5: { hours: 999, discount: 50 },   // 8+ hours: 50% off
+      };
+
       // Prepare menu item data
       const menuItemData = {
         id: itemId.trim(),
@@ -261,6 +334,16 @@ export default function AddMenuItemScreen() {
         isAvailable: true,
         createdAt: serverTimestamp(),
         createdBy: user.uid,
+        // Dynamic Pricing Fields
+        originalPrice: parseFloat(price),
+        currentPrice: parseFloat(price),
+        dynamicPricingEnabled,
+        preparedTime: Timestamp.fromDate(preparedTime),
+        expiryTime: Timestamp.fromDate(expiryTime),
+        freshnessHours: hours,
+        freshnessStatus: 'fresh' as const,
+        discountRules,
+        lastPriceUpdate: serverTimestamp(),
       };
 
       // Add to Firestore with custom document ID (category-id format)
@@ -284,6 +367,10 @@ export default function AddMenuItemScreen() {
               setItemId('');
               setRating('');
               setImageUri(null);
+              setDynamicPricingEnabled(false);
+              setFreshnessHours('8');
+              setPreparedTimeInput('');
+              setExpiryTimeInput('');
               fetchRestaurantCount();
               fetchCategoryItemCount();
             },
@@ -382,7 +469,7 @@ export default function AddMenuItemScreen() {
 
           {/* Price */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Price ($) *</Text>
+            <Text style={styles.label}>Price (RM) *</Text>
             <TextInput
               style={styles.input}
               placeholder="e.g., 12.99"
@@ -485,6 +572,101 @@ export default function AddMenuItemScreen() {
               placeholderTextColor="#999"
             />
           </View>
+
+          {/* Dynamic Pricing Section */}
+          <View style={styles.sectionDivider} />
+          <Text style={styles.sectionTitle}>⏰ Dynamic Pricing</Text>
+          
+          {/* Enable Dynamic Pricing Toggle */}
+          <View style={styles.inputGroup}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLabelContainer}>
+                <Text style={styles.label}>Enable Dynamic Pricing</Text>
+                <Text style={styles.infoText}>Automatically lower price as item ages</Text>
+              </View>
+              <Pressable
+                style={[
+                  styles.toggle,
+                  dynamicPricingEnabled && styles.toggleActive,
+                ]}
+                onPress={() => setDynamicPricingEnabled(!dynamicPricingEnabled)}
+              >
+                <View
+                  style={[
+                    styles.toggleThumb,
+                    dynamicPricingEnabled && styles.toggleThumbActive,
+                  ]}
+                />
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Prepared Time */}
+          {dynamicPricingEnabled && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Prepared Time (Optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="YYYY-MM-DD HH:MM (e.g., 2026-03-03 09:00)"
+                value={preparedTimeInput}
+                onChangeText={setPreparedTimeInput}
+                placeholderTextColor="#999"
+              />
+              <Text style={styles.infoText}>
+                📅 Format: YYYY-MM-DD HH:MM (e.g., 2026-03-03 09:00)
+              </Text>
+              <Text style={styles.infoText}>
+                💡 Leave empty to use current time
+              </Text>
+            </View>
+          )}
+
+          {/* Expiry Time */}
+          {dynamicPricingEnabled && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Expiry Time (Optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="YYYY-MM-DD HH:MM (e.g., 2026-03-15 09:00)"
+                value={expiryTimeInput}
+                onChangeText={setExpiryTimeInput}
+                placeholderTextColor="#999"
+              />
+              <Text style={styles.infoText}>
+                📅 Format: YYYY-MM-DD HH:MM (e.g., 2026-03-15 09:00)
+              </Text>
+              <Text style={styles.infoText}>
+                💡 Leave empty to auto-calculate from freshness hours
+              </Text>
+            </View>
+          )}
+
+          {/* Freshness Duration */}
+          {dynamicPricingEnabled && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Freshness Duration (hours)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., 8"
+                value={freshnessHours}
+                onChangeText={setFreshnessHours}
+                keyboardType="decimal-pad"
+                placeholderTextColor="#999"
+              />
+              <Text style={styles.infoText}>
+                💡 Used only if Expiry Time is not specified. Items will be discounted as they age.
+              </Text>
+              {freshnessHours && !isNaN(parseFloat(freshnessHours)) && !expiryTimeInput.trim() && (
+                <View style={styles.pricingPreview}>
+                  <Text style={styles.pricingPreviewTitle}>Price Timeline:</Text>
+                  <Text style={styles.pricingPreviewItem}>⏱️ 0-2 hrs: RM{price || '0.00'} (Full Price)</Text>
+                  <Text style={styles.pricingPreviewItem}>⏱️ 2-4 hrs: RM{price ? (parseFloat(price) * 0.9).toFixed(2) : '0.00'} (10% off)</Text>
+                  <Text style={styles.pricingPreviewItem}>⏱️ 4-6 hrs: RM{price ? (parseFloat(price) * 0.75).toFixed(2) : '0.00'} (25% off)</Text>
+                  <Text style={styles.pricingPreviewItem}>⏱️ 6+ hrs: RM{price ? (parseFloat(price) * 0.6).toFixed(2) : '0.00'} (40% off)</Text>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Submit Button */}
           <Pressable
@@ -693,5 +875,69 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '700',
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2E7D32',
+    marginBottom: 16,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  toggleLabelContainer: {
+    flex: 1,
+  },
+  toggle: {
+    width: 56,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E0E0E0',
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleActive: {
+    backgroundColor: '#2E7D32',
+  },
+  toggleThumb: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleThumbActive: {
+    alignSelf: 'flex-end',
+  },
+  pricingPreview: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#B3E5FC',
+  },
+  pricingPreviewTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0277BD',
+    marginBottom: 8,
+  },
+  pricingPreviewItem: {
+    fontSize: 13,
+    color: '#01579B',
+    marginBottom: 4,
+    paddingLeft: 8,
   },
 });

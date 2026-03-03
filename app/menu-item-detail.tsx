@@ -55,6 +55,20 @@ export default function MenuItemDetailScreen() {
     rating: params.rating ? parseFloat(params.rating as string) : undefined,
     isAvailable: params.isAvailable === 'true',
     createdAt: new Date(),
+    // Dynamic Pricing Fields
+    originalPrice: params.originalPrice ? parseFloat(params.originalPrice as string) : undefined,
+    currentPrice: params.currentPrice ? parseFloat(params.currentPrice as string) : undefined,
+    dynamicPricingEnabled: params.dynamicPricingEnabled === 'true',
+    preparedTime: params.preparedTime ? (() => {
+      const date = new Date(params.preparedTime as string);
+      return !isNaN(date.getTime()) ? date : undefined;
+    })() : undefined,
+    expiryTime: params.expiryTime ? (() => {
+      const date = new Date(params.expiryTime as string);
+      return !isNaN(date.getTime()) ? date : undefined;
+    })() : undefined,
+    freshnessHours: params.freshnessHours ? parseFloat(params.freshnessHours as string) : undefined,
+    freshnessStatus: params.freshnessStatus as 'fresh' | 'discounted' | 'expiring-soon' | undefined,
   };
 
   // Get fresh download URL from Firebase Storage
@@ -323,7 +337,23 @@ export default function MenuItemDetailScreen() {
 
         {/* Price and Quantity */}
         <View style={styles.priceContainer}>
-          <Text style={styles.priceText}>${item.price.toFixed(2)}</Text>
+          <View style={styles.priceSection}>
+            {item.dynamicPricingEnabled && item.originalPrice && item.currentPrice && item.currentPrice < item.originalPrice ? (
+              <>
+                <View style={styles.priceRow}>
+                  <Text style={styles.originalPrice}>RM{item.originalPrice.toFixed(2)}</Text>
+                  <Text style={styles.priceText}>RM{item.currentPrice.toFixed(2)}</Text>
+                </View>
+                <View style={[styles.statusBadge, styles.discountBadge]}>
+                  <Text style={styles.statusBadgeText}>
+                    {Math.round(((item.originalPrice - item.currentPrice) / item.originalPrice) * 100)}% OFF
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <Text style={styles.priceText}>RM{item.price.toFixed(2)}</Text>
+            )}
+          </View>
           <View style={styles.quantityContainer}>
             <Pressable onPress={decrementQuantity} style={styles.quantityButton}>
               <Text style={styles.quantityButtonText}>−</Text>
@@ -334,6 +364,63 @@ export default function MenuItemDetailScreen() {
             </Pressable>
           </View>
         </View>
+
+        {/* Dynamic Pricing Info */}
+        {(item.dynamicPricingEnabled || item.preparedTime || item.expiryTime) && (
+          <View style={styles.dynamicPricingCard}>
+            <View style={styles.dynamicPricingHeader}>
+              <Text style={styles.dynamicPricingTitle}>⏰ Freshness Information</Text>
+              {item.freshnessStatus === 'fresh' && (
+                <View style={[styles.statusBadge, styles.freshBadge]}>
+                  <Text style={styles.statusBadgeText}>FRESH</Text>
+                </View>
+              )}
+              {item.freshnessStatus === 'discounted' && (
+                <View style={[styles.statusBadge, styles.discountedBadge]}>
+                  <Text style={styles.statusBadgeText}>DISCOUNTED</Text>
+                </View>
+              )}
+              {item.freshnessStatus === 'expiring-soon' && (
+                <View style={[styles.statusBadge, styles.expiringSoonBadge]}>
+                  <Text style={styles.statusBadgeText}>LAST CALL</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.dynamicPricingDetails}>
+              {item.dynamicPricingEnabled && (
+                <View style={styles.timeRow}>
+                  <Text style={styles.timeLabel}>⚡ Pricing:</Text>
+                  <Text style={[styles.timeValue, { color: '#2E7D32', fontWeight: '700' }]}>Dynamic (Price updates automatically)</Text>
+                </View>
+              )}
+              {item.preparedTime && (
+                <View style={styles.timeRow}>
+                  <Text style={styles.timeLabel}>🍳 Prepared:</Text>
+                  <Text style={styles.timeValue}>
+                    {new Date(item.preparedTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at{' '}
+                    {new Date(item.preparedTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+              )}
+              {item.expiryTime && (
+                <View style={styles.timeRow}>
+                  <Text style={styles.timeLabel}>⏱️ Best Before:</Text>
+                  <Text style={styles.timeValue}>
+                    {new Date(item.expiryTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at{' '}
+                    {new Date(item.expiryTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+              )}
+              {item.freshnessStatus === 'discounted' || item.freshnessStatus === 'expiring-soon' ? (
+                <Text style={styles.savingsText}>💰 Save big and reduce food waste!</Text>
+              ) : item.freshnessStatus === 'fresh' ? (
+                <Text style={styles.savingsText}>✨ Freshly prepared, full quality!</Text>
+              ) : (item.preparedTime || item.expiryTime) ? (
+                <Text style={styles.savingsText}>🍽️ Check preparation and expiry details above</Text>
+              ) : null}
+            </View>
+          </View>
+        )}
 
         {/* What's Included */}
         <View style={styles.descriptionContainer}>
@@ -571,10 +658,94 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 20,
   },
+  priceSection: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   priceText: {
     fontSize: 32,
     fontWeight: '700',
     color: '#2E7D32',
+  },
+  originalPrice: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#999',
+    textDecorationLine: 'line-through',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  freshBadge: {
+    backgroundColor: '#4CAF50',
+  },
+  discountBadge: {
+    backgroundColor: '#FF5722',
+  },
+  discountedBadge: {
+    backgroundColor: '#FF9800',
+  },
+  expiringSoonBadge: {
+    backgroundColor: '#F44336',
+  },
+  statusBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  dynamicPricingCard: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: 15,
+    padding: 16,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FFD54F',
+  },
+  dynamicPricingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  dynamicPricingTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#F57C00',
+  },
+  dynamicPricingDetails: {
+    gap: 8,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555',
+    minWidth: 90,
+  },
+  timeValue: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+  },
+  savingsText: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    color: '#F57C00',
+    marginTop: 4,
+    fontWeight: '600',
   },
   quantityContainer: {
     flexDirection: 'row',

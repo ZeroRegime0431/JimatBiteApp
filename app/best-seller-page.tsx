@@ -148,6 +148,14 @@ export default function BestSellerScreen() {
         restaurantName: item.restaurantName,
         rating: item.rating?.toString() || '',
         isAvailable: item.isAvailable.toString(),
+        // Dynamic Pricing Fields
+        originalPrice: item.originalPrice?.toString(),
+        currentPrice: item.currentPrice?.toString(),
+        dynamicPricingEnabled: item.dynamicPricingEnabled?.toString(),
+        preparedTime: item.preparedTime instanceof Date ? item.preparedTime.toISOString() : undefined,
+        expiryTime: item.expiryTime instanceof Date ? item.expiryTime.toISOString() : undefined,
+        freshnessHours: item.freshnessHours?.toString(),
+        freshnessStatus: item.freshnessStatus,
       },
     });
   };
@@ -242,7 +250,7 @@ export default function BestSellerScreen() {
 
                 {/* Price Badge */}
                 <View style={styles.priceBadge}>
-                  <Text style={styles.priceText}>${item.price.toFixed(2)}</Text>
+                  <Text style={styles.priceText}>RM{item.price.toFixed(2)}</Text>
                 </View>
 
                 {/* Item Details */}

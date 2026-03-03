@@ -160,7 +160,7 @@ export default function MerchantMenuItemDetail() {
     }
   };
 
-  const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
+  const formatCurrency = (value: number) => `RM${value.toFixed(2)}`;
 
   const renderRating = (value: number) => {
     const fullStars = Math.round(value);
@@ -214,7 +214,77 @@ export default function MerchantMenuItemDetail() {
           </View>
           <Text style={styles.itemName}>{menuItem.name}</Text>
           <Text style={styles.itemRestaurant}>{menuItem.restaurantName}</Text>
-          <Text style={styles.itemPrice}>{formatCurrency(menuItem.price)}</Text>
+          <View style={styles.priceRow}>
+            {menuItem.dynamicPricingEnabled && menuItem.originalPrice && menuItem.currentPrice && menuItem.currentPrice < menuItem.originalPrice ? (
+              <>
+                <Text style={styles.originalPriceText}>{formatCurrency(menuItem.originalPrice)}</Text>
+                <Text style={styles.itemPrice}>{formatCurrency(menuItem.currentPrice)}</Text>
+                <View style={[styles.badge, styles.discountBadge]}>
+                  <Text style={styles.badgeText}>
+                    {Math.round(((menuItem.originalPrice - menuItem.currentPrice) / menuItem.originalPrice) * 100)}% OFF
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <Text style={styles.itemPrice}>{formatCurrency(menuItem.price)}</Text>
+            )}
+          </View>
+
+          {/* Dynamic Pricing Info */}
+          {(menuItem.dynamicPricingEnabled || menuItem.preparedTime || menuItem.expiryTime) && (
+            <View style={styles.dynamicPricingSection}>
+              <View style={styles.dynamicPricingHeader}>
+                <Text style={styles.sectionSubtitle}>⏰ Freshness Information</Text>
+                {menuItem.freshnessStatus === 'fresh' && (
+                  <View style={[styles.badge, styles.freshBadge]}>
+                    <Text style={styles.badgeText}>FRESH</Text>
+                  </View>
+                )}
+                {menuItem.freshnessStatus === 'discounted' && (
+                  <View style={[styles.badge, styles.discountedBadge]}>
+                    <Text style={styles.badgeText}>DISCOUNTED</Text>
+                  </View>
+                )}
+                {menuItem.freshnessStatus === 'expiring-soon' && (
+                  <View style={[styles.badge, styles.expiringSoonBadge]}>
+                    <Text style={styles.badgeText}>LAST CALL</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.timeInfoGrid}>
+                {menuItem.dynamicPricingEnabled && (
+                  <View style={styles.timeInfoRow}>
+                    <Text style={styles.timeInfoLabel}>⚡ Status:</Text>
+                    <Text style={[styles.timeInfoValue, { color: '#2E7D32', fontWeight: '700' }]}>Dynamic Pricing Active</Text>
+                  </View>
+                )}
+                {menuItem.preparedTime && (
+                  <View style={styles.timeInfoRow}>
+                    <Text style={styles.timeInfoLabel}>🍳 Prepared:</Text>
+                    <Text style={styles.timeInfoValue}>
+                      {new Date(menuItem.preparedTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{' '}
+                      {new Date(menuItem.preparedTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </View>
+                )}
+                {menuItem.expiryTime && (
+                  <View style={styles.timeInfoRow}>
+                    <Text style={styles.timeInfoLabel}>⏱️ Expires:</Text>
+                    <Text style={styles.timeInfoValue}>
+                      {new Date(menuItem.expiryTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{' '}
+                      {new Date(menuItem.expiryTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </View>
+                )}
+                {menuItem.freshnessHours && (
+                  <View style={styles.timeInfoRow}>
+                    <Text style={styles.timeInfoLabel}>📅 Shelf Life:</Text>
+                    <Text style={styles.timeInfoValue}>{menuItem.freshnessHours} hours</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
         </View>
 
         <View style={styles.statsRow}>
@@ -331,11 +401,82 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 4,
   },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
   itemPrice: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1A5D1A',
-    marginTop: 6,
+  },
+  originalPriceText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#9CA3AF',
+    textDecorationLine: 'line-through',
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  freshBadge: {
+    backgroundColor: '#4CAF50',
+  },
+  discountBadge: {
+    backgroundColor: '#FF5722',
+  },
+  discountedBadge: {
+    backgroundColor: '#FF9800',
+  },
+  expiringSoonBadge: {
+    backgroundColor: '#F44336',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  dynamicPricingSection: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#FFD54F',
+  },
+  dynamicPricingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#F57C00',
+  },
+  timeInfoGrid: {
+    gap: 6,
+  },
+  timeInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  timeInfoLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#555',
+    minWidth: 85,
+  },
+  timeInfoValue: {
+    fontSize: 12,
+    color: '#333',
+    flex: 1,
   },
   statsRow: {
     flexDirection: 'row',

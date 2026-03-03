@@ -226,6 +226,14 @@ export default function CategoryVeganScreen() {
                       restaurantName: item.restaurantName,
                       rating: item.rating?.toString() || '0',
                       isAvailable: item.isAvailable.toString(),
+                      // Dynamic Pricing Fields
+                      originalPrice: item.originalPrice?.toString(),
+                      currentPrice: item.currentPrice?.toString(),
+                      dynamicPricingEnabled: item.dynamicPricingEnabled?.toString(),
+                      preparedTime: item.preparedTime instanceof Date ? item.preparedTime.toISOString() : undefined,
+                      expiryTime: item.expiryTime instanceof Date ? item.expiryTime.toISOString() : undefined,
+                      freshnessHours: item.freshnessHours?.toString(),
+                      freshnessStatus: item.freshnessStatus,
                     }
                   })}
                 >
@@ -234,11 +242,39 @@ export default function CategoryVeganScreen() {
                       source={{ uri: item.imageURL }} 
                       style={styles.foodImage}
                     />
+                    {item.freshnessStatus && (
+                      <View style={styles.badgeOverlay}>
+                        {item.freshnessStatus === 'fresh' && (
+                          <View style={[styles.statusBadge, styles.freshBadge]}>
+                            <Text style={styles.statusBadgeText}>FRESH</Text>
+                          </View>
+                        )}
+                        {item.freshnessStatus === 'discounted' && (
+                          <View style={[styles.statusBadge, styles.discountedBadge]}>
+                            <Text style={styles.statusBadgeText}>DISCOUNTED</Text>
+                          </View>
+                        )}
+                        {item.freshnessStatus === 'expiring-soon' && (
+                          <View style={[styles.statusBadge, styles.expiringSoonBadge]}>
+                            <Text style={styles.statusBadgeText}>LAST CALL</Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
                   </View>
                   <View style={styles.foodInfo}>
                     <View style={styles.foodHeader}>
                       <Text style={styles.foodName}>{item.name}</Text>
-                      <Text style={styles.foodPrice}>${item.price.toFixed(2)}</Text>
+                      <View style={styles.priceContainer}>
+                        {item.dynamicPricingEnabled && item.originalPrice && item.currentPrice && item.currentPrice < item.originalPrice ? (
+                          <>
+                            <Text style={styles.originalPriceText}>RM{item.originalPrice.toFixed(2)}</Text>
+                            <Text style={styles.foodPrice}>RM{item.currentPrice.toFixed(2)}</Text>
+                          </>
+                        ) : (
+                          <Text style={styles.foodPrice}>RM{item.price.toFixed(2)}</Text>
+                        )}
+                      </View>
                     </View>
                     <View style={styles.foodMeta}>
                       <View style={styles.ratingContainer}>
@@ -466,6 +502,31 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
+    position: 'relative',
+  },
+  badgeOverlay: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  freshBadge: {
+    backgroundColor: '#4CAF50',
+  },
+  discountedBadge: {
+    backgroundColor: '#FF9800',
+  },
+  expiringSoonBadge: {
+    backgroundColor: '#F44336',
+  },
+  statusBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   foodInfo: {
     padding: 15,
@@ -482,10 +543,21 @@ const styles = StyleSheet.create({
     color: '#333',
     flex: 1,
   },
+  priceContainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 2,
+  },
   foodPrice: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#4CAF50',
+  },
+  originalPriceText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#999',
+    textDecorationLine: 'line-through',
   },
   foodMeta: {
     flexDirection: 'row',

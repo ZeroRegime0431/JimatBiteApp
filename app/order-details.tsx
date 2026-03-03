@@ -388,7 +388,7 @@ export default function OrderDetailsScreen() {
                       </View>
                     )}
                   </View>
-                  <Text style={styles.itemPrice}>${(item.price * item.quantity).toFixed(2)}</Text>
+                  <Text style={styles.itemPrice}>RM{(item.price * item.quantity).toFixed(2)}</Text>
                 </View>
               ))}
             </View>
@@ -422,19 +422,19 @@ export default function OrderDetailsScreen() {
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>${order.totalAmount.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>RM{order.totalAmount.toFixed(2)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Tax & Fees</Text>
-              <Text style={styles.summaryValue}>${order.tax.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>RM{order.tax.toFixed(2)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Delivery Fee</Text>
-              <Text style={styles.summaryValue}>${order.deliveryFee.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>RM{order.deliveryFee.toFixed(2)}</Text>
             </View>
             <View style={[styles.summaryRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>${order.grandTotal.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>RM{order.grandTotal.toFixed(2)}</Text>
             </View>
           </View>
         </View>

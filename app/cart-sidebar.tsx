@@ -242,7 +242,7 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
                       </View>
                       <View style={styles.itemDetails}>
                         <Text style={styles.itemName}>{item.name}</Text>
-                        <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                        <Text style={styles.itemPrice}>RM{item.price.toFixed(2)}</Text>
                         <Text style={styles.restaurantName}>{item.restaurantName}</Text>
                         <View style={styles.quantityRow}>
                           <View style={styles.quantityControl}>
@@ -277,19 +277,19 @@ export default function CartSidebar({ visible, onClose }: CartSidebarProps) {
             <View style={styles.summaryContainer}>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Subtotal</Text>
-                <Text style={styles.summaryValue}>${subtotal.toFixed(2)}</Text>
+                <Text style={styles.summaryValue}>RM{subtotal.toFixed(2)}</Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Tax and Fees</Text>
-                <Text style={styles.summaryValue}>${taxAndFees.toFixed(2)}</Text>
+                <Text style={styles.summaryValue}>RM{taxAndFees.toFixed(2)}</Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Delivery</Text>
-                <Text style={styles.summaryValue}>${delivery.toFixed(2)}</Text>
+                <Text style={styles.summaryValue}>RM{delivery.toFixed(2)}</Text>
               </View>
               <View style={[styles.summaryRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+                <Text style={styles.totalValue}>RM{total.toFixed(2)}</Text>
               </View>
             </View>
 

@@ -256,22 +256,22 @@ export default function CheckoutPaymentScreen() {
                     <Text style={styles.itemName}>{item.name}</Text>
                     <Text style={styles.itemQuantity}>x{item.quantity}</Text>
                   </View>
-                  <Text style={styles.itemPrice}>${itemTotal.toFixed(2)}</Text>
+                  <Text style={styles.itemPrice}>RM{itemTotal.toFixed(2)}</Text>
                 </View>
               );
             })}
             <View style={styles.divider} />
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>${subtotal.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>RM{subtotal.toFixed(2)}</Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Tax & Fees</Text>
-              <Text style={styles.summaryValue}>${taxAndFees.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>RM{taxAndFees.toFixed(2)}</Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Delivery</Text>
-              <Text style={styles.summaryValue}>{delivery === 0 ? 'FREE' : `$${delivery.toFixed(2)}`}</Text>
+              <Text style={styles.summaryValue}>{delivery === 0 ? 'FREE' : `RM${delivery.toFixed(2)}`}</Text>
             </View>
             {isPromoApplied && (
               <View style={styles.promoAppliedBadge}>
@@ -280,7 +280,7 @@ export default function CheckoutPaymentScreen() {
             )}
             <View style={styles.totalRow}>
               <Text style={styles.totalText}>Total</Text>
-              <Text style={styles.totalAmount}>${total.toFixed(2)}</Text>
+              <Text style={styles.totalAmount}>RM{total.toFixed(2)}</Text>
             </View>
           </View>
         </View>
