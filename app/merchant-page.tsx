@@ -293,7 +293,7 @@ export default function MerchantPage() {
         <ThemedText style={styles.restaurantName}>{order.restaurantName}</ThemedText>
         <View style={styles.orderDetails}>
           <ThemedText style={styles.itemCount}>{order.items.length} items</ThemedText>
-          <ThemedText style={styles.orderTotal}>${order.grandTotal.toFixed(2)}</ThemedText>
+          <ThemedText style={styles.orderTotal}>RM{order.grandTotal.toFixed(2)}</ThemedText>
         </View>
         <View style={styles.orderFooter}>
           <ThemedText style={styles.customerName}>Customer: {customerName}</ThemedText>
@@ -327,7 +327,7 @@ export default function MerchantPage() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => router.replace('/home-page')} style={styles.backButton}>
           <BackArrowLeftSvg width={24} height={24} />
         </Pressable>
         <ThemedText type="title" style={styles.headerTitle}>Merchant Dashboard</ThemedText>
@@ -367,15 +367,15 @@ export default function MerchantPage() {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <ThemedText style={styles.statLabel}>Today's Sales</ThemedText>
-            <ThemedText style={styles.statValue}>${todaySales.toFixed(2)}</ThemedText>
+            <ThemedText style={styles.statValue}>RM{todaySales.toFixed(2)}</ThemedText>
           </View>
           <View style={styles.statCard}>
             <ThemedText style={styles.statLabel}>Weekly Sales</ThemedText>
-            <ThemedText style={styles.statValue}>${weeklySales.toFixed(2)}</ThemedText>
+            <ThemedText style={styles.statValue}>RM{weeklySales.toFixed(2)}</ThemedText>
           </View>
           <View style={styles.statCard}>
             <ThemedText style={styles.statLabel}>Monthly Sales</ThemedText>
-            <ThemedText style={styles.statValue}>${monthlySales.toFixed(2)}</ThemedText>
+            <ThemedText style={styles.statValue}>RM{monthlySales.toFixed(2)}</ThemedText>
           </View>
           <View style={styles.statCard}>
             <ThemedText style={styles.statLabel}>Total Orders</ThemedText>
@@ -430,6 +430,18 @@ export default function MerchantPage() {
             onPress={() => router.push('./chat-list')}
           >
             <ThemedText style={styles.addItemButtonText}>Messages</ThemedText>
+          </Pressable>
+        </View>
+
+        <View style={styles.addItemSection}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionTitle}>Dynamic Pricing Configuration</ThemedText>
+          </View>
+          <Pressable
+            style={styles.discountConfigButton}
+            onPress={() => router.push('./discount-config')}
+          >
+            <ThemedText style={styles.discountConfigButtonText}>⚙️ Configure Discounts</ThemedText>
           </Pressable>
         </View>
 
@@ -720,6 +732,17 @@ const styles = StyleSheet.create({
   manageItemsButtonText: {
     color: '#ffffff',
     fontSize: 15,
+    fontWeight: '700',
+  },
+  discountConfigButton: {
+    backgroundColor: '#1A5D1A',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  discountConfigButtonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '700',
   },
   sectionHeader: {

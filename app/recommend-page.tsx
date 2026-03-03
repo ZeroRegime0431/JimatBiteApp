@@ -172,6 +172,14 @@ export default function RecommendScreen() {
         restaurantName: item.restaurantName,
         rating: item.rating?.toString() || '0',
         isAvailable: item.isAvailable.toString(),
+        // Dynamic Pricing Fields
+        originalPrice: item.originalPrice?.toString(),
+        currentPrice: item.currentPrice?.toString(),
+        dynamicPricingEnabled: item.dynamicPricingEnabled?.toString(),
+        preparedTime: item.preparedTime instanceof Date ? item.preparedTime.toISOString() : undefined,
+        expiryTime: item.expiryTime instanceof Date ? item.expiryTime.toISOString() : undefined,
+        freshnessHours: item.freshnessHours?.toString(),
+        freshnessStatus: item.freshnessStatus,
       },
     });
   };
@@ -293,7 +301,7 @@ export default function RecommendScreen() {
                       <Text style={styles.itemRestaurant} numberOfLines={1}>{item.restaurantName}</Text>
                       <Text style={styles.itemDescription} numberOfLines={2}>{item.description}</Text>
                       <View style={styles.priceRow}>
-                        <Text style={styles.priceText}>${item.price.toFixed(2)}</Text>
+                        <Text style={styles.priceText}>RM{item.price.toFixed(2)}</Text>
                         <Pressable style={styles.addButton}>
                           <Text style={styles.addButtonText}>+</Text>
                         </Pressable>

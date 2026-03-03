@@ -141,6 +141,14 @@ export default function FavoritesScreen() {
         restaurantName: item.restaurantName,
         rating: item.rating?.toString() || '',
         isAvailable: item.isAvailable.toString(),
+        // Dynamic Pricing Fields
+        originalPrice: item.originalPrice?.toString(),
+        currentPrice: item.currentPrice?.toString(),
+        dynamicPricingEnabled: item.dynamicPricingEnabled?.toString(),
+        preparedTime: item.preparedTime instanceof Date ? item.preparedTime.toISOString() : undefined,
+        expiryTime: item.expiryTime instanceof Date ? item.expiryTime.toISOString() : undefined,
+        freshnessHours: item.freshnessHours?.toString(),
+        freshnessStatus: item.freshnessStatus,
       },
     });
   };

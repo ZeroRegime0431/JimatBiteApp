@@ -298,6 +298,14 @@ export default function HomePage() {
         restaurantName: item.restaurantName,
         rating: item.rating?.toString() || '0',
         isAvailable: item.isAvailable.toString(),
+        // Dynamic Pricing Fields
+        originalPrice: item.originalPrice?.toString(),
+        currentPrice: item.currentPrice?.toString(),
+        dynamicPricingEnabled: item.dynamicPricingEnabled?.toString(),
+        preparedTime: item.preparedTime instanceof Date ? item.preparedTime.toISOString() : undefined,
+        expiryTime: item.expiryTime instanceof Date ? item.expiryTime.toISOString() : undefined,
+        freshnessHours: item.freshnessHours?.toString(),
+        freshnessStatus: item.freshnessStatus,
       }
     });
   };
@@ -468,6 +476,14 @@ export default function HomePage() {
                         restaurantName: item.restaurantName,
                         rating: item.rating?.toString() || '0',
                         isAvailable: item.isAvailable.toString(),
+                        // Dynamic Pricing Fields
+                        originalPrice: item.originalPrice?.toString(),
+                        currentPrice: item.currentPrice?.toString(),
+                        dynamicPricingEnabled: item.dynamicPricingEnabled?.toString(),
+                        preparedTime: item.preparedTime instanceof Date ? item.preparedTime.toISOString() : undefined,
+                        expiryTime: item.expiryTime instanceof Date ? item.expiryTime.toISOString() : undefined,
+                        freshnessHours: item.freshnessHours?.toString(),
+                        freshnessStatus: item.freshnessStatus,
                       }
                     })}
                   >
@@ -477,7 +493,7 @@ export default function HomePage() {
                       <Text style={styles.searchResultRestaurant}>{item.restaurantName}</Text>
                       <Text style={styles.searchResultDescription} numberOfLines={2}>{item.description}</Text>
                       <View style={styles.searchResultBottom}>
-                        <Text style={styles.searchResultPrice}>${item.price.toFixed(2)}</Text>
+                        <Text style={styles.searchResultPrice}>RM{item.price.toFixed(2)}</Text>
                         <Text style={styles.searchResultCategory}>{item.category}</Text>
                       </View>
                     </View>
@@ -558,7 +574,7 @@ export default function HomePage() {
                       transition={300}
                     />
                     <ThemedText type="defaultSemiBold" style={styles.cardTitle}>{item.name}</ThemedText>
-                    <ThemedText style={styles.cardPrice}>${item.price.toFixed(2)}</ThemedText>
+                    <ThemedText style={styles.cardPrice}>RM{item.price.toFixed(2)}</ThemedText>
                   </Pressable>
                 );
               }}
@@ -627,7 +643,7 @@ export default function HomePage() {
                       <ThemedText type="defaultSemiBold" style={styles.recommendTitle}>{item.name}</ThemedText>
                       <ThemedText style={styles.distanceText}>{item.restaurantName}</ThemedText>
                     </View>
-                    <ThemedText style={styles.recommendPrice}>${item.price.toFixed(2)}</ThemedText>
+                    <ThemedText style={styles.recommendPrice}>RM{item.price.toFixed(2)}</ThemedText>
                   </Pressable>
                 );
               }}

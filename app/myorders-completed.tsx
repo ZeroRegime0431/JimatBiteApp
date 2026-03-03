@@ -185,7 +185,7 @@ export default function MyOrdersCompletedScreen() {
                     </View>
                   </View>
                   <View style={styles.orderRightSection}>
-                    <Text style={styles.orderPrice}>${order.grandTotal.toFixed(2)}</Text>
+                    <Text style={styles.orderPrice}>RM{order.grandTotal.toFixed(2)}</Text>
                   </View>
                 </Pressable>
               ))

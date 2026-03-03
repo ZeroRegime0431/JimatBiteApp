@@ -35,6 +35,22 @@ export interface MenuItem {
   rating?: number;
   isAvailable: boolean;
   createdAt: Date;
+  // Dynamic Pricing Fields
+  originalPrice?: number;
+  currentPrice?: number;
+  dynamicPricingEnabled?: boolean;
+  preparedTime?: Date;
+  expiryTime?: Date;
+  freshnessHours?: number;
+  freshnessStatus?: 'fresh' | 'discounted' | 'expiring-soon';
+  discountRules?: {
+    tier1: { hours: number; discount: number };
+    tier2: { hours: number; discount: number };
+    tier3: { hours: number; discount: number };
+    tier4: { hours: number; discount: number };
+    tier5: { hours: number; discount: number };
+  };
+  lastPriceUpdate?: Date;
 }
 
 export interface CartItem {

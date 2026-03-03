@@ -207,7 +207,7 @@ export default function MerchantMenuItemsPage() {
 	};
 
 	const formatCurrency = (value: number) => {
-		return `$${value.toFixed(2)}`;
+		return `RM${value.toFixed(2)}`;
 	};
 
 	return (
