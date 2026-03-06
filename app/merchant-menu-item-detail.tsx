@@ -7,7 +7,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 import { db, storage } from '../config/firebase';
-import { getMenuItem } from '../services/database';
+import { deleteMenuItem, getMenuItem } from '../services/database';
 import type { MenuItem, Order, Review } from '../types';
 
 export default function MerchantMenuItemDetail() {
@@ -24,6 +24,7 @@ export default function MerchantMenuItemDetail() {
   const [freshImageURL, setFreshImageURL] = useState<string>('');
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadItemDetails();
@@ -167,6 +168,58 @@ export default function MerchantMenuItemDetail() {
     return '★'.repeat(fullStars) + '☆'.repeat(5 - fullStars);
   };
 
+  const handleEdit = () => {
+    router.push({
+      pathname: './edit-menu-item',
+      params: { itemId },
+    });
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Menu Item',
+      `Are you sure you want to delete "${menuItem?.name}"? This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: confirmDelete,
+        },
+      ]
+    );
+  };
+
+  const confirmDelete = async () => {
+    try {
+      setDeleting(true);
+      const result = await deleteMenuItem(itemId);
+      
+      if (result.success) {
+        Alert.alert(
+          'Success',
+          'Menu item deleted successfully',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Error', result.error || 'Failed to delete menu item');
+        setDeleting(false);
+      }
+    } catch (error: any) {
+      console.error('Error deleting menu item:', error);
+      Alert.alert('Error', error.message || 'Failed to delete menu item');
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -189,7 +242,26 @@ export default function MerchantMenuItemDetail() {
           <BackArrowLeftSvg width={22} height={22} />
         </Pressable>
         <Text style={styles.headerTitle}>Item Insights</Text>
-        <View style={styles.backButton} />
+        <View style={styles.actionButtons}>
+          <Pressable 
+            style={[styles.actionButton, styles.editButton]} 
+            onPress={handleEdit}
+            disabled={deleting}
+          >
+            <Text style={styles.actionButtonText}>✏️</Text>
+          </Pressable>
+          <Pressable 
+            style={[styles.actionButton, styles.deleteButton]} 
+            onPress={handleDelete}
+            disabled={deleting}
+          >
+            {deleting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.actionButtonText}>🗑️</Text>
+            )}
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -352,6 +424,34 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#1A5D1A',
+    flex: 1,
+    textAlign: 'center',
+    marginRight: -32,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  editButton: {
+    backgroundColor: '#2E7D32',
+  },
+  deleteButton: {
+    backgroundColor: '#D32F2F',
+  },
+  actionButtonText: {
+    fontSize: 16,
   },
   scrollContent: {
     paddingHorizontal: 16,

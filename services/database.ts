@@ -8,6 +8,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  Timestamp,
   updateDoc,
   where
 } from 'firebase/firestore';
@@ -617,6 +618,115 @@ export const getMenuItem = async (
     }
   } catch (error: any) {
     console.error('Error getting menu item:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const updateMenuItem = async (
+  itemId: string,
+  updates: Partial<MenuItem>
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const itemRef = doc(db, 'menuItems', itemId);
+    
+    // Check if item exists
+    const itemSnap = await getDoc(itemRef);
+    if (!itemSnap.exists()) {
+      return { success: false, error: 'Menu item not found' };
+    }
+
+    // Prepare update data, converting Date objects to Timestamps
+    const updateData: any = { ...updates };
+    
+    if (updateData.preparedTime instanceof Date) {
+      updateData.preparedTime = Timestamp.fromDate(updateData.preparedTime);
+    }
+    if (updateData.expiryTime instanceof Date) {
+      updateData.expiryTime = Timestamp.fromDate(updateData.expiryTime);
+    }
+    if (updateData.lastPriceUpdate instanceof Date) {
+      updateData.lastPriceUpdate = Timestamp.fromDate(updateData.lastPriceUpdate);
+    }
+    
+    // Remove undefined fields
+    const cleanedData = removeUndefinedFields(updateData);
+    
+    // Add updatedAt timestamp
+    cleanedData.updatedAt = serverTimestamp();
+    
+    await updateDoc(itemRef, cleanedData);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error updating menu item:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const deleteMenuItem = async (
+  itemId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const itemRef = doc(db, 'menuItems', itemId);
+    
+    // Check if item exists
+    const itemSnap = await getDoc(itemRef);
+    if (!itemSnap.exists()) {
+      return { success: false, error: 'Menu item not found' };
+    }
+
+    // Check for active orders containing this item
+    const ordersRef = collection(db, 'orders');
+    const activeOrdersQuery = query(
+      ordersRef,
+      where('status', 'in', ['pending', 'confirmed', 'preparing', 'on-the-way'])
+    );
+    const ordersSnapshot = await getDocs(activeOrdersQuery);
+    
+    let hasActiveOrders = false;
+    ordersSnapshot.forEach((orderDoc) => {
+      const order = orderDoc.data();
+      if (order.items && Array.isArray(order.items)) {
+        const hasItem = order.items.some((item: any) => item.menuItemId === itemId);
+        if (hasItem) {
+          hasActiveOrders = true;
+        }
+      }
+    });
+
+    if (hasActiveOrders) {
+      return { 
+        success: false, 
+        error: 'Cannot delete item - it is in active orders. Please wait for orders to complete.' 
+      };
+    }
+
+    // Remove from all users' favorites
+    const favoritesRef = collection(db, 'favorites');
+    const favoritesSnapshot = await getDocs(favoritesRef);
+    
+    const favoriteDeletePromises: Promise<void>[] = [];
+    favoritesSnapshot.forEach((favoriteDoc) => {
+      const favoriteData = favoriteDoc.data();
+      if (favoriteData.items && Array.isArray(favoriteData.items)) {
+        const filteredItems = favoriteData.items.filter(
+          (item: any) => item.id !== itemId
+        );
+        if (filteredItems.length !== favoriteData.items.length) {
+          favoriteDeletePromises.push(
+            updateDoc(doc(db, 'favorites', favoriteDoc.id), { items: filteredItems })
+          );
+        }
+      }
+    });
+    
+    await Promise.all(favoriteDeletePromises);
+
+    // Delete the menu item
+    await deleteDoc(itemRef);
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error deleting menu item:', error);
     return { success: false, error: error.message };
   }
 };
