@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
 import { collection, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { auth, db } from '../config/firebase';
-import { getMenuItems, getMerchantProfile } from '../services/database';
+import { deleteMenuItem, getMenuItems, getMerchantProfile } from '../services/database';
 import type { MenuItem, MerchantAccount, Order, Review } from '../types';
 
 import ArrowRightSvg from '../assets/Settings/icons/redarrowright.svg';
@@ -34,6 +34,7 @@ export default function MerchantMenuItemsPage() {
 	const [restaurants, setRestaurants] = useState<RestaurantGroup[]>([]);
 	const [merchantProfile, setMerchantProfile] = useState<MerchantAccount | null>(null);
 	const [isAdmin, setIsAdmin] = useState(false);
+	const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
 
 	useEffect(() => {
 		loadMerchantProfileAndItems();
@@ -210,6 +211,53 @@ export default function MerchantMenuItemsPage() {
 		return `RM${value.toFixed(2)}`;
 	};
 
+	const handleEdit = (itemId: string) => {
+		router.push({
+			pathname: './edit-menu-item',
+			params: { itemId },
+		});
+	};
+
+	const handleDelete = (itemId: string, itemName: string) => {
+		Alert.alert(
+			'Delete Menu Item',
+			`Are you sure you want to delete "${itemName}"? This action cannot be undone.`,
+			[
+				{
+					text: 'Cancel',
+					style: 'cancel',
+				},
+				{
+					text: 'Delete',
+					style: 'destructive',
+					onPress: () => confirmDelete(itemId),
+				},
+			]
+		);
+	};
+
+	const confirmDelete = async (itemId: string) => {
+		try {
+			setDeletingItemId(itemId);
+			const result = await deleteMenuItem(itemId);
+			
+			if (result.success) {
+				Alert.alert('Success', 'Menu item deleted successfully');
+				// Reload menu items
+				if (merchantProfile) {
+					await loadMenuItems(merchantProfile, isAdmin);
+				}
+			} else {
+				Alert.alert('Error', result.error || 'Failed to delete menu item');
+			}
+		} catch (error: any) {
+			console.error('Error deleting menu item:', error);
+			Alert.alert('Error', error.message || 'Failed to delete menu item');
+		} finally {
+			setDeletingItemId(null);
+		}
+	};
+
 	return (
 		<View style={styles.container}>
 			<View style={styles.header}>
@@ -268,26 +316,47 @@ export default function MerchantMenuItemsPage() {
 									{restaurantExpandedMap[restaurant.id] && (
 										<View style={styles.itemsList}>
 											{restaurant.items.map((itemStats) => (
-												<Pressable
-													key={itemStats.menuItem.id}
-													style={styles.itemCard}
-													onPress={() =>
-														router.push({
-															pathname: './merchant-menu-item-detail',
-															params: { itemId: itemStats.menuItem.id },
-														})
-													}
-												>
-													<View style={styles.itemHeader}>
-														<Text style={styles.itemName}>{itemStats.menuItem.name}</Text>
-														<Text style={styles.itemPrice}>{formatCurrency(itemStats.menuItem.price)}</Text>
+												<View key={itemStats.menuItem.id} style={styles.itemCard}>
+													<Pressable
+														style={styles.itemContent}
+														onPress={() =>
+															router.push({
+																pathname: './merchant-menu-item-detail',
+																params: { itemId: itemStats.menuItem.id },
+															})
+														}
+													>
+														<View style={styles.itemHeader}>
+															<Text style={styles.itemName}>{itemStats.menuItem.name}</Text>
+															<Text style={styles.itemPrice}>{formatCurrency(itemStats.menuItem.price)}</Text>
+														</View>
+														<View style={styles.itemStatsRow}>
+															<Text style={styles.itemStat}>Sold: {itemStats.soldCount}</Text>
+															<Text style={styles.itemStat}>Rating: {itemStats.avgRating || 'N/A'}</Text>
+															<Text style={styles.itemStat}>Earned: {formatCurrency(itemStats.revenue)}</Text>
+														</View>
+													</Pressable>
+													<View style={styles.quickActionsRow}>
+														<Pressable
+															style={[styles.quickActionButton, styles.editActionButton]}
+															onPress={() => handleEdit(itemStats.menuItem.id)}
+															disabled={deletingItemId === itemStats.menuItem.id}
+														>
+															<Text style={styles.quickActionText}>✏️ Edit</Text>
+														</Pressable>
+														<Pressable
+															style={[styles.quickActionButton, styles.deleteActionButton]}
+															onPress={() => handleDelete(itemStats.menuItem.id, itemStats.menuItem.name)}
+															disabled={deletingItemId === itemStats.menuItem.id}
+														>
+															{deletingItemId === itemStats.menuItem.id ? (
+																<ActivityIndicator size="small" color="#fff" />
+															) : (
+																<Text style={styles.quickActionText}>🗑️ Delete</Text>
+															)}
+														</Pressable>
 													</View>
-													<View style={styles.itemStatsRow}>
-														<Text style={styles.itemStat}>Sold: {itemStats.soldCount}</Text>
-														<Text style={styles.itemStat}>Rating: {itemStats.avgRating || 'N/A'}</Text>
-														<Text style={styles.itemStat}>Earned: {formatCurrency(itemStats.revenue)}</Text>
-													</View>
-												</Pressable>
+												</View>
 											))}
 										</View>
 									)}
@@ -414,6 +483,9 @@ const styles = StyleSheet.create({
 		borderWidth: 1,
 		borderColor: '#E5E7EB',
 	},
+	itemContent: {
+		flex: 1,
+	},
 	itemHeader: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
@@ -423,6 +495,7 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		fontWeight: '700',
 		color: '#111827',
+		flex: 1,
 	},
 	itemPrice: {
 		fontSize: 13,
@@ -437,5 +510,34 @@ const styles = StyleSheet.create({
 	itemStat: {
 		fontSize: 11,
 		color: '#6B7280',
+	},
+	quickActionsRow: {
+		flexDirection: 'row',
+		gap: 8,
+		marginTop: 10,
+		paddingTop: 10,
+		borderTopWidth: 1,
+		borderTopColor: '#F3F4F6',
+	},
+	quickActionButton: {
+		flex: 1,
+		paddingVertical: 8,
+		paddingHorizontal: 12,
+		borderRadius: 8,
+		alignItems: 'center',
+		flexDirection: 'row',
+		justifyContent: 'center',
+		gap: 4,
+	},
+	editActionButton: {
+		backgroundColor: '#2E7D32',
+	},
+	deleteActionButton: {
+		backgroundColor: '#D32F2F',
+	},
+	quickActionText: {
+		color: '#fff',
+		fontSize: 12,
+		fontWeight: '600',
 	},
 });
