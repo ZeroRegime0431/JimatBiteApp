@@ -212,17 +212,17 @@ The following test cases were systematically executed to validate the core funct
 
 ---
 
-### Test Case 9: Push Notification Delivery
+### Test Case 9: Chat and Communication System
 
 | **Field** | **Details** |
 |-----------|-------------|
 | **Test Case ID** | TC-009 |
-| **Feature** | Push Notifications |
-| **Test Scenario** | Receive and handle push notifications |
-| **Priority** | Medium |
-| **Prerequisites** | - User logged in with notification permissions granted<br>- Device registered with FCM<br>- App in background or closed state |
-| **Test Steps** | 1. Ensure notification permissions granted<br>2. Navigate to Settings > Notifications<br>3. Verify notification preferences enabled<br>4. Place an order<br>5. Close or minimize the app<br>6. [Merchant] Update order status to "Preparing"<br>7. [Customer] Wait for notification arrival<br>8. Verify notification appears in device notification tray<br>9. Verify notification shows order status message<br>10. Tap on notification<br>11. Verify app opens to order details screen<br>12. Test notification for order completion<br>13. Verify notification badge count updates |
-| **Expected Result** | - Device token registered in Firestore<br>- Notifications delivered within 5 seconds<br>- Notification content accurate and informative<br>- Notification tap opens correct screen<br>- Notification badge reflects unread count<br>- Notifications work when app is closed<br>- Sound/vibration patterns work correctly |
+| **Feature** | Customer-Merchant Chat |
+| **Test Scenario** | Send and receive messages between customer and merchant |
+| **Priority** | High |
+| **Prerequisites** | - Customer account logged in<br>- Merchant account available for testing<br>- Active order exists between customer and merchant<br>- Active internet connection |
+| **Test Steps** | 1. [Customer] Navigate to home page<br>2. Open sidebar menu<br>3. Tap on "Chat" option<br>4. Verify chat list displays available conversations<br>5. Select a merchant to chat with<br>6. Verify chat room opens with message history<br>7. Type a message: "Hello, what time will my order be ready?"<br>8. Tap send button<br>9. Verify message appears in chat window with timestamp<br>10. [Merchant] Open chat list on merchant account<br>11. Verify unread message indicator appears<br>12. Open conversation with customer<br>13. Verify customer's message is visible<br>14. Type reply: "Your order will be ready in 15 minutes"<br>15. Send message<br>16. [Customer] Verify merchant's reply appears in real-time<br>17. Test sending multiple messages consecutively<br>18. Verify messages display in correct chronological order<br>19. Navigate away and return to chat<br>20. Verify chat history persists |
+| **Expected Result** | - Chat list displays all active conversations<br>- Messages send successfully to Firestore<br>- Messages appear in real-time without refresh<br>- Message timestamps display correctly<br>- Unread message indicators work properly<br>- Chat history persists across sessions<br>- Messages display in chronological order<br>- Both customer and merchant can send/receive messages<br>- Character limit validation works (if applicable)<br>- No message loss during transmission |
 | **Actual Result** | **[TO BE FILLED]** |
 | **Test Status** | **[PASS/FAIL/PENDING]** |
 | **Comments** | **[Any observations or issues encountered]** |
@@ -231,17 +231,17 @@ The following test cases were systematically executed to validate the core funct
 
 ---
 
-### Test Case 10: Real-time Database Synchronization
+### Test Case 10: Merchant Account Registration
 
 | **Field** | **Details** |
 |-----------|-------------|
 | **Test Case ID** | TC-010 |
-| **Feature** | Real-time Data Sync |
-| **Test Scenario** | Verify real-time updates across devices |
+| **Feature** | Merchant Signup |
+| **Test Scenario** | Complete merchant registration through multi-step process |
 | **Priority** | High |
-| **Prerequisites** | - Same user logged in on two different devices<br>- Active internet connection on both devices<br>- Firestore real-time listeners configured |
-| **Test Steps** | 1. [Device 1] Login as customer<br>2. [Device 2] Login with same customer account<br>3. [Device 1] Add item to cart<br>4. [Device 2] Open cart sidebar<br>5. Verify item appears in cart without refresh<br>6. [Device 2] Increment item quantity<br>7. [Device 1] Verify quantity updated automatically<br>8. [Device 1] Add item to favorites<br>9. [Device 2] Open favorites page<br>10. Verify item appears in favorites list<br>11. [Device 1] Place an order<br>12. [Device 2] Navigate to active orders<br>13. Verify order appears without manual refresh<br>14. [Device 1] Update profile information<br>15. [Device 2] View profile<br>16. Verify profile changes reflected |
-| **Expected Result** | - Cart updates sync in real-time (< 2 seconds)<br>- Favorites sync across devices instantly<br>- Orders appear immediately after placement<br>- Profile changes propagate to all sessions<br>- No manual refresh required<br>- Firestore listeners maintain active connections<br>- Synchronization works bidirectionally |
+| **Prerequisites** | - JimatBite app installed and launched<br>- Active internet connection<br>- Valid email address not previously registered<br>- Business information ready for input<br>- Valid phone number for verification |
+| **Test Steps** | **Step 1 - Personal Information:**<br>1. Launch application and tap "Sign Up"<br>2. Select "Merchant" role in signup selection<br>3. Enter full name: "Test Merchant Owner"<br>4. Enter email: "testmerchant@example.com"<br>5. Enter password: "Merchant@123"<br>6. Tap "Continue" button<br>7. Verify navigation to Step 2<br><br>**Step 2 - Business Details:**<br>8. Enter store name: "Test Food Corner"<br>9. Enter business registration number: "BR-123456"<br>10. Enter phone number: "+60123456789"<br>11. Enter business address: "123 Main Street, Kuala Lumpur"<br>12. Tap "Continue" button<br>13. Verify navigation to Step 3<br><br>**Step 3 - Operating Hours:**<br>14. Select operating days: Monday to Friday<br>15. Set opening time: 9:00 AM<br>16. Set closing time: 9:00 PM<br>17. Select service types: "Dine-in" and "Delivery"<br>18. Tap "Continue" button<br>19. Verify navigation to Step 4<br><br>**Step 4 - Verification & Submission:**<br>20. Review all entered information summary<br>21. Upload business license document (if required)<br>22. Accept terms and conditions checkbox<br>23. Tap "Submit Application" button<br>24. Verify success message displays<br>25. Verify merchant account created in Firestore<br>26. Verify account status set to "pending approval"<br>27. Logout and login with merchant credentials<br>28. Verify access to merchant dashboard (if auto-approved) or pending status message |
+| **Expected Result** | - Multi-step form navigation works smoothly<br>- All form fields validate properly (required fields, email format, phone format)<br>- "Back" button allows returning to previous steps<br>- Form data persists when moving between steps<br>- Merchant account created in Firebase Authentication<br>- Merchant profile stored in Firestore `merchantAccounts` collection<br>- Account status correctly set to "pending" or "approved"<br>- Confirmation message displays after submission<br>- Email verification sent (if configured)<br>- Merchant can login after registration<br>- Appropriate access control based on approval status<br>- Business document uploads successfully to Firebase Storage (if required) |
 | **Actual Result** | **[TO BE FILLED]** |
 | **Test Status** | **[PASS/FAIL/PENDING]** |
 | **Comments** | **[Any observations or issues encountered]** |
