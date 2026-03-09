@@ -1,5 +1,6 @@
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getMenuItems } from '../services/database';
 import { MenuItem } from '../types';
@@ -55,6 +56,9 @@ export default function CategoryMealScreen() {
   const [foodItems, setFoodItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilters, setActiveFilters] = useState<any>(null);
+  const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
+  const [filterLoading, setFilterLoading] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -73,6 +77,76 @@ export default function CategoryMealScreen() {
   useEffect(() => {
     loadMenuItems();
   }, []);
+
+  // Load filters when returning from filter page
+  useFocusEffect(
+    useCallback(() => {
+      loadActiveFilters();
+    }, [])
+  );
+
+  const loadActiveFilters = async () => {
+    try {
+      const filtersStr = await AsyncStorage.getItem('activeFilters');
+      if (filtersStr) {
+        const filters = JSON.parse(filtersStr);
+        if (filters.active && (filters.categories.length === 0 || filters.categories.includes('meal'))) {
+          setActiveFilters(filters);
+          await applyFilters(filters);
+        } else {
+          setActiveFilters(null);
+          setFilteredItems([]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading filters:', error);
+    }
+  };
+
+  const applyFilters = async (filters: any) => {
+    setFilterLoading(true);
+    
+    // For category pages, only filter items from this category
+    const result = await getMenuItems('meal');
+    let items: MenuItem[] = [];
+    
+    if (result.success && result.data) {
+      items = result.data;
+    }
+    
+    // Apply filters
+    const filtered = items.filter(item => {
+      // Price filter
+      if (item.price < filters.minPrice || item.price > filters.maxPrice) {
+        return false;
+      }
+      
+      // Rating filter
+      if (filters.rating > 0 && (!item.rating || item.rating < filters.rating)) {
+        return false;
+      }
+      
+      // Freshness filter
+      if (filters.freshness.length > 0 && item.freshnessStatus && !filters.freshness.includes(item.freshnessStatus)) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    setFilteredItems(filtered);
+    setFilterLoading(false);
+  };
+
+  const clearFilters = async () => {
+    try {
+      await AsyncStorage.removeItem('activeFilters');
+      setActiveFilters(null);
+      setFilteredItems([]);
+    } catch (error) {
+      console.error('Error clearing filters:', error);
+    }
+  };
 
   const loadMenuItems = async () => {
     setLoading(true);
@@ -132,10 +206,79 @@ export default function CategoryMealScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
-        <Pressable style={styles.filterButton}>
+        <Pressable style={styles.filterButton} onPress={() => router.push({ pathname: '/filter-page', params: { category: 'meal' } })}>
           <FilterSvg width={24} height={24} />
         </Pressable>
       </View>
+
+      {/* Filter Results Overlay */}
+      {activeFilters && (
+        <>
+          <Pressable 
+            style={styles.filterBackdrop}
+            onPress={clearFilters}
+          />
+          <View style={styles.filterResultsContainer}>
+            <View style={styles.filterHeader}>
+              <Text style={styles.filterHeaderText}>Filtered Meals</Text>
+              <Pressable style={styles.clearFilterButton} onPress={clearFilters}>
+                <Text style={styles.clearFilterText}>✕ Clear</Text>
+              </Pressable>
+            </View>
+            <ScrollView style={styles.filterResultsScroll} showsVerticalScrollIndicator={false}>
+              {filterLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#4CAF50" />
+                  <Text style={styles.loadingText}>Applying filters...</Text>
+                </View>
+              ) : filteredItems.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No items match your filters</Text>
+                  <Text style={styles.emptySubtext}>Try adjusting your filter settings</Text>
+                </View>
+              ) : (
+                <View style={styles.filterResultsList}>
+                  <Text style={styles.filterResultsTitle}>
+                    {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} found
+                  </Text>
+                  {filteredItems.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      style={styles.filterResultItem}
+                      onPress={() => router.push({
+                        pathname: './menu-item-detail',
+                        params: {
+                          id: item.id,
+                          name: item.name,
+                          description: item.description,
+                          price: item.price.toString(),
+                          category: item.category,
+                          imageURL: item.imageURL,
+                          restaurantId: item.restaurantId,
+                          restaurantName: item.restaurantName,
+                          rating: item.rating?.toString() || '0',
+                          isAvailable: item.isAvailable.toString(),
+                        }
+                      })}
+                    >
+                      <Image source={{ uri: item.imageURL }} style={styles.filterResultImage} />
+                      <View style={styles.filterResultInfo}>
+                        <Text style={styles.filterResultName}>{item.name}</Text>
+                        <Text style={styles.filterResultRestaurant}>{item.restaurantName}</Text>
+                        <Text style={styles.filterResultDescription} numberOfLines={2}>{item.description}</Text>
+                        <View style={styles.filterResultBottom}>
+                          <Text style={styles.filterResultPrice}>RM{item.price.toFixed(2)}</Text>
+                          {item.rating && <Text style={styles.filterResultRating}>★ {item.rating.toFixed(1)}</Text>}
+                        </View>
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </>
+      )}
 
       {/* Content */}
       <View style={styles.content}>
@@ -183,7 +326,7 @@ export default function CategoryMealScreen() {
               <Pressable style={styles.groupOrderButton}>
                 <Text style={styles.groupOrderText}>Group Order</Text>
               </Pressable>
-              <Pressable style={styles.filterIconButton}>
+              <Pressable style={styles.filterIconButton} onPress={() => router.push({ pathname: '/filter-page', params: { category: 'meal' } })}>
                 <FilterSvg width={20} height={20} />
               </Pressable>
             </View>
@@ -619,6 +762,123 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: '#999',
+  },
+  emptySubtext: {
+    fontSize: 12,
+    color: '#BBB',
+    marginTop: 8,
+  },
+  filterBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 999,
+  },
+  filterResultsContainer: {
+    position: 'absolute',
+    top: 140,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#fff',
+    zIndex: 1000,
+    elevation: 5,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#f4ffc9',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  filterHeaderText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A5D1A',
+  },
+  clearFilterButton: {
+    backgroundColor: '#1A5D1A',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  clearFilterText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  filterResultsScroll: {
+    flex: 1,
+  },
+  filterResultsList: {
+    padding: 16,
+  },
+  filterResultsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A5D1A',
+    marginBottom: 16,
+  },
+  filterResultItem: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  filterResultImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+  },
+  filterResultInfo: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: 'space-between',
+  },
+  filterResultName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 4,
+  },
+  filterResultRestaurant: {
+    fontSize: 13,
+    color: '#1A5D1A',
+    marginBottom: 4,
+  },
+  filterResultDescription: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 8,
+  },
+  filterResultBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  filterResultPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A5D1A',
+  },
+  filterResultRating: {
+    fontSize: 13,
+    color: '#FFD700',
+    fontWeight: '600',
   },
   bottomNav: {
     position: 'absolute',
