@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { getDownloadURL, ref } from 'firebase/storage';
@@ -73,6 +74,9 @@ export default function HomePage() {
   const [promoItem, setPromoItem] = useState<MenuItem | null>(null);
   const [imageURLs, setImageURLs] = useState<{ [key: string]: string }>({});
   const [dataLoading, setDataLoading] = useState(true);
+  const [activeFilters, setActiveFilters] = useState<any>(null);
+  const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
+  const [filterLoading, setFilterLoading] = useState(false);
 
   // Handle hardware back button - prevent going back to auth screens
   useFocusEffect(
@@ -85,6 +89,13 @@ export default function HomePage() {
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
 
       return () => subscription.remove();
+    }, [])
+  );
+
+  // Load filters when returning from filter page
+  useFocusEffect(
+    useCallback(() => {
+      loadActiveFilters();
     }, [])
   );
 
@@ -143,6 +154,67 @@ export default function HomePage() {
     
     loadAllItems();
   }, [searchQuery]);
+
+  const loadActiveFilters = async () => {
+    try {
+      const filtersStr = await AsyncStorage.getItem('activeFilters');
+      if (filtersStr) {
+        const filters = JSON.parse(filtersStr);
+        if (filters.active) {
+          setActiveFilters(filters);
+          await applyFilters(filters);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading filters:', error);
+    }
+  };
+
+  const applyFilters = async (filters: any) => {
+    setFilterLoading(true);
+    const categories = filters.categories.length > 0 ? filters.categories : ['meal', 'vegan', 'drink', 'dessert', 'blindbox'];
+    const allItems: MenuItem[] = [];
+    
+    for (const category of categories) {
+      const result = await getMenuItems(category);
+      if (result.success && result.data) {
+        allItems.push(...result.data);
+      }
+    }
+    
+    // Apply filters
+    const filtered = allItems.filter(item => {
+      // Price filter
+      if (item.price < filters.minPrice || item.price > filters.maxPrice) {
+        return false;
+      }
+      
+      // Rating filter
+      if (filters.rating > 0 && (!item.rating || item.rating < filters.rating)) {
+        return false;
+      }
+      
+      // Freshness filter
+      if (filters.freshness.length > 0 && item.freshnessStatus && !filters.freshness.includes(item.freshnessStatus)) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    setFilteredItems(filtered);
+    setFilterLoading(false);
+  };
+
+  const clearFilters = async () => {
+    try {
+      await AsyncStorage.removeItem('activeFilters');
+      setActiveFilters(null);
+      setFilteredItems([]);
+    } catch (error) {
+      console.error('Error clearing filters:', error);
+    }
+  };
 
   const loadHomeData = async () => {
     setDataLoading(true);
@@ -419,7 +491,7 @@ export default function HomePage() {
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
-            <Pressable style={styles.filterButton} onPress={() => {}}>
+            <Pressable style={styles.filterButton} onPress={() => router.push('/filter-page')}>
               <topIcons.filter width={22} height={22} />
             </Pressable>
           </View>
@@ -502,6 +574,82 @@ export default function HomePage() {
               </View>
             )}
           </ScrollView>
+          </View>
+        </>
+      )}
+
+      {activeFilters && searchQuery.trim() === '' && (
+        <>
+          <Pressable 
+            style={styles.searchBackdrop}
+            onPress={clearFilters}
+          />
+          <View style={styles.searchResultsContainer}>
+            <View style={styles.filterHeader}>
+              <Text style={styles.filterHeaderText}>Filtered Results</Text>
+              <Pressable style={styles.clearFilterButton} onPress={clearFilters}>
+                <Text style={styles.clearFilterText}>✕ Clear Filters</Text>
+              </Pressable>
+            </View>
+            <ScrollView style={styles.searchResultsScroll} showsVerticalScrollIndicator={false}>
+              {filterLoading ? (
+                <View style={styles.searchLoadingContainer}>
+                  <ActivityIndicator size="large" color="#1A5D1A" />
+                  <Text style={styles.searchLoadingText}>Applying filters...</Text>
+                </View>
+              ) : filteredItems.length === 0 ? (
+                <View style={styles.searchEmptyContainer}>
+                  <Text style={styles.searchEmptyText}>No items match your filters</Text>
+                  <Text style={styles.searchEmptySubtext}>Try adjusting your filter settings</Text>
+                </View>
+              ) : (
+                <View style={styles.searchResultsList}>
+                  <Text style={styles.searchResultsTitle}>
+                    {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} found
+                  </Text>
+                  {filteredItems.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      style={styles.searchResultItem}
+                      onPress={() => router.push({
+                        pathname: './menu-item-detail',
+                        params: {
+                          id: item.id,
+                          name: item.name,
+                          description: item.description,
+                          price: item.price.toString(),
+                          category: item.category,
+                          imageURL: item.imageURL,
+                          restaurantId: item.restaurantId,
+                          restaurantName: item.restaurantName,
+                          rating: item.rating?.toString() || '0',
+                          isAvailable: item.isAvailable.toString(),
+                          // Dynamic Pricing Fields
+                          originalPrice: item.originalPrice?.toString(),
+                          currentPrice: item.currentPrice?.toString(),
+                          dynamicPricingEnabled: item.dynamicPricingEnabled?.toString(),
+                          preparedTime: item.preparedTime instanceof Date ? item.preparedTime.toISOString() : undefined,
+                          expiryTime: item.expiryTime instanceof Date ? item.expiryTime.toISOString() : undefined,
+                          freshnessHours: item.freshnessHours?.toString(),
+                          freshnessStatus: item.freshnessStatus,
+                        }
+                      })}
+                    >
+                      <Image source={{ uri: item.imageURL }} style={styles.searchResultImage} />
+                      <View style={styles.searchResultInfo}>
+                        <Text style={styles.searchResultName}>{item.name}</Text>
+                        <Text style={styles.searchResultRestaurant}>{item.restaurantName}</Text>
+                        <Text style={styles.searchResultDescription} numberOfLines={2}>{item.description}</Text>
+                        <View style={styles.searchResultBottom}>
+                          <Text style={styles.searchResultPrice}>RM{item.price.toFixed(2)}</Text>
+                          <Text style={styles.searchResultCategory}>{item.category}</Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
           </View>
         </>
       )}
@@ -833,6 +981,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     zIndex: 1000,
     elevation: 5,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#f4ffc9',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  filterHeaderText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A5D1A',
+  },
+  clearFilterButton: {
+    backgroundColor: '#1A5D1A',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  clearFilterText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   searchResultsScroll: {
     flex: 1,

@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { db } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
 import { createOrder, getCart, getUserPaymentMethods, saveCart } from '../services/database';
 // import { checkGeneralNotifications, sendOrderConfirmationNotification } from '../services/notifications';
@@ -28,6 +30,7 @@ export default function CheckoutPaymentScreen() {
   const [paymentIconType, setPaymentIconType] = useState<string>('card');
   const [pickupAddress, setPickupAddress] = useState('53300, Wangsa Maju, KL');
   const [isPromoApplied, setIsPromoApplied] = useState(false);
+  const [restaurantAddresses, setRestaurantAddresses] = useState<{[key: string]: string}>({});
 
   useFocusEffect(
     useCallback(() => {
@@ -48,6 +51,9 @@ export default function CheckoutPaymentScreen() {
       const cartResult = await getCart(user.uid);
       if (cartResult.success && cartResult.data) {
         setOrderItems(cartResult.data.items);
+        
+        // Load restaurant addresses
+        await loadRestaurantAddresses(cartResult.data.items);
       }
 
       // Load selected payment method
@@ -112,6 +118,55 @@ export default function CheckoutPaymentScreen() {
     } catch (error) {
       console.error('Error loading order data:', error);
     }
+  };
+
+  const loadRestaurantAddresses = async (items: CartItem[]) => {
+    // Get unique restaurant names
+    const restaurantNames = [...new Set(items.map(item => item.restaurantName))];
+    const addresses: {[key: string]: string} = {};
+    
+    for (const restaurantName of restaurantNames) {
+      try {
+        // Try merchant_accounts collection first
+        const merchantAccountsRef = collection(db, 'merchant_accounts');
+        const q = query(merchantAccountsRef, where('storeName', '==', restaurantName));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+          const merchantData = snapshot.docs[0].data();
+          const addressParts = [
+            merchantData.addressLine1,
+            merchantData.addressLine2,
+            merchantData.postCode,
+            merchantData.city
+          ].filter(Boolean);
+          addresses[restaurantName] = addressParts.join(', ');
+        } else {
+          // Try merchants collection as fallback
+          const merchantsRef = collection(db, 'merchants');
+          const q2 = query(merchantsRef, where('storeName', '==', restaurantName));
+          const snapshot2 = await getDocs(q2);
+          
+          if (!snapshot2.empty) {
+            const merchantData = snapshot2.docs[0].data();
+            const addressParts = [
+              merchantData.addressLine1,
+              merchantData.addressLine2,
+              merchantData.postCode,
+              merchantData.city
+            ].filter(Boolean);
+            addresses[restaurantName] = addressParts.join(', ');
+          } else {
+            addresses[restaurantName] = 'Address not available';
+          }
+        }
+      } catch (error) {
+        console.error(`Error loading address for ${restaurantName}:`, error);
+        addresses[restaurantName] = 'Address not available';
+      }
+    }
+    
+    setRestaurantAddresses(addresses);
   };
 
   const calculateSubtotal = () => {
@@ -228,14 +283,23 @@ export default function CheckoutPaymentScreen() {
         {/* Pickup Address */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Pickup Address</Text>
+            <Text style={styles.sectionTitle}>Pickup Address{Object.keys(restaurantAddresses).length > 1 ? 'es' : ''}</Text>
             <Pressable onPress={() => router.push('./checkout')}>
               <Text style={styles.editText}>Edit</Text>
             </Pressable>
           </View>
-          <View style={styles.addressBox}>
-            <Text style={styles.addressText}>{pickupAddress}</Text>
-          </View>
+          {Object.keys(restaurantAddresses).length === 0 ? (
+            <View style={styles.addressBox}>
+              <Text style={styles.addressText}>No items in cart</Text>
+            </View>
+          ) : (
+            Object.entries(restaurantAddresses).map(([restaurantName, address]) => (
+              <View key={restaurantName} style={styles.addressBox}>
+                <Text style={styles.restaurantName}>{restaurantName}</Text>
+                <Text style={styles.addressText}>{address}</Text>
+              </View>
+            ))
+          )}
         </View>
 
         {/* Order Summary */}
@@ -396,6 +460,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5DEB3',
     borderRadius: 15,
     padding: 15,
+    marginBottom: 10,
+  },
+  restaurantName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A5D1A',
+    marginBottom: 4,
   },
   addressText: {
     fontSize: 14,

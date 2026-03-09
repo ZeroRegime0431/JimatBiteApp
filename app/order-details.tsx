@@ -26,6 +26,7 @@ export default function OrderDetailsScreen() {
   const [showScanner, setShowScanner] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [restaurantAddresses, setRestaurantAddresses] = useState<{[key: string]: string}>({});
 
   useEffect(() => {
     loadOrderDetails();
@@ -87,6 +88,9 @@ export default function OrderDetailsScreen() {
         }
       }
       setImageURLs(urls);
+      
+      // Load restaurant addresses
+      await loadRestaurantAddresses(result.data.items);
     } else {
       // Fallback: try to fetch from user's orders (for backward compatibility)
       const user = getCurrentUser();
@@ -104,12 +108,64 @@ export default function OrderDetailsScreen() {
               }
             }
             setImageURLs(urls);
+            
+            // Load restaurant addresses
+            await loadRestaurantAddresses(foundOrder.items);
           }
         }
       }
     }
     
     setLoading(false);
+  };
+
+  const loadRestaurantAddresses = async (items: Order['items']) => {
+    // Get unique restaurant names
+    const restaurantNames = [...new Set(items.map(item => item.restaurantName))];
+    const addresses: {[key: string]: string} = {};
+    
+    for (const restaurantName of restaurantNames) {
+      try {
+        // Try merchant_accounts collection first
+        const merchantAccountsRef = collection(db, 'merchant_accounts');
+        const q = query(merchantAccountsRef, where('storeName', '==', restaurantName));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+          const merchantData = snapshot.docs[0].data();
+          const addressParts = [
+            merchantData.addressLine1,
+            merchantData.addressLine2,
+            merchantData.postCode,
+            merchantData.city
+          ].filter(Boolean);
+          addresses[restaurantName] = addressParts.join(', ');
+        } else {
+          // Try merchants collection as fallback
+          const merchantsRef = collection(db, 'merchants');
+          const q2 = query(merchantsRef, where('storeName', '==', restaurantName));
+          const snapshot2 = await getDocs(q2);
+          
+          if (!snapshot2.empty) {
+            const merchantData = snapshot2.docs[0].data();
+            const addressParts = [
+              merchantData.addressLine1,
+              merchantData.addressLine2,
+              merchantData.postCode,
+              merchantData.city
+            ].filter(Boolean);
+            addresses[restaurantName] = addressParts.join(', ');
+          } else {
+            addresses[restaurantName] = 'Address not available';
+          }
+        }
+      } catch (error) {
+        console.error(`Error loading address for ${restaurantName}:`, error);
+        addresses[restaurantName] = 'Address not available';
+      }
+    }
+    
+    setRestaurantAddresses(addresses);
   };
 
   const getStatusColor = (status: Order['status']) => {
@@ -395,17 +451,21 @@ export default function OrderDetailsScreen() {
           ))}
         </View>
 
-        {/* Delivery Address */}
+        {/* Pickup Address */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Delivery Address</Text>
-          <View style={styles.addressCard}>
-            <Text style={styles.addressLabel}>{order.deliveryAddress.label}</Text>
-            <Text style={styles.addressText}>{order.deliveryAddress.street}</Text>
-            <Text style={styles.addressText}>
-              {order.deliveryAddress.city}, {order.deliveryAddress.state} {order.deliveryAddress.postalCode}
-            </Text>
-            <Text style={styles.addressText}>{order.deliveryAddress.country}</Text>
-          </View>
+          <Text style={styles.sectionTitle}>Pickup Address{Object.keys(restaurantAddresses).length > 1 ? 'es' : ''}</Text>
+          {Object.keys(restaurantAddresses).length === 0 ? (
+            <View style={styles.addressCard}>
+              <Text style={styles.addressText}>No items in order</Text>
+            </View>
+          ) : (
+            Object.entries(restaurantAddresses).map(([restaurantName, address]) => (
+              <View key={restaurantName} style={styles.addressCard}>
+                <Text style={styles.addressLabel}>{restaurantName}</Text>
+                <Text style={styles.addressText}>{address}</Text>
+              </View>
+            ))
+          )}
         </View>
 
         {/* Payment Method */}
@@ -762,6 +822,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     elevation: 4,
+    marginBottom: 10,
   },
   addressLabel: {
     fontSize: 14,
