@@ -1,13 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, serverTimestamp, updateDoc } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, BackHandler, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import EcoDashboard from '@/components/EcoDashboard';
 import { ThemedText } from '@/components/themed-text';
 import { auth, db } from '../config/firebase';
 import { getMerchantProfile } from '../services/database';
-import { MerchantAccount, Order } from '../types';
+import { getEcoStats } from '../services/eco';
+import { EcoPackagingStats, MerchantAccount, Order, PackagingType } from '../types';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
 import SideBar from './side-bar';
@@ -56,6 +58,17 @@ export default function MerchantPage() {
   const [monthlySalesTrend, setMonthlySalesTrend] = useState<{ label: string; value: number }[]>([]);
   const maxSalesValue = salesTrend.length > 0 ? Math.max(1, Math.max(...salesTrend.map(item => item.value))) : 1;
   const maxMonthlySalesValue = monthlySalesTrend.length > 0 ? Math.max(1, Math.max(...monthlySalesTrend.map(item => item.value))) : 1;
+  
+  // Eco-packaging stats
+  const [ecoStats, setEcoStats] = useState<EcoPackagingStats | undefined>(undefined);
+  const [ecoDashboardExpanded, setEcoDashboardExpanded] = useState(false);
+  
+  // Eco-packaging settings
+  const [ecoSettingsExpanded, setEcoSettingsExpanded] = useState(false);
+  const [usesEcoPackaging, setUsesEcoPackaging] = useState(false);
+  const [defaultPackagingType, setDefaultPackagingType] = useState<PackagingType>('biodegradable');
+  const [packagingModalVisible, setPackagingModalVisible] = useState(false);
+  const [savingEcoSettings, setSavingEcoSettings] = useState(false);
 
   // Handle hardware back button - prevent going back to auth screens
   useFocusEffect(
@@ -80,6 +93,7 @@ export default function MerchantPage() {
   useEffect(() => {
     if (merchantProfile) {
       loadOrders();
+      loadEcoStats();
     }
   }, [merchantProfile]);
 
@@ -114,10 +128,57 @@ export default function MerchantPage() {
         const result = await getMerchantProfile(currentUser.uid);
         if (result.success && result.data) {
           setMerchantProfile(result.data);
+          
+          // Initialize eco-packaging settings from profile
+          setUsesEcoPackaging(result.data.usesEcoPackaging || false);
+          setDefaultPackagingType(result.data.defaultPackagingType || 'biodegradable');
         }
       }
     } catch (error) {
       console.error('Error loading merchant profile:', error);
+    }
+  };
+
+  const loadEcoStats = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const result = await getEcoStats(currentUser.uid);
+        if (result.success && result.data) {
+          setEcoStats(result.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading eco stats:', error);
+    }
+  };
+  
+  const saveEcoSettings = async () => {
+    try {
+      setSavingEcoSettings(true);
+      const currentUser = auth.currentUser;
+      if (currentUser && merchantProfile) {
+        const merchantRef = doc(db, 'merchants', currentUser.uid);
+        await updateDoc(merchantRef, {
+          usesEcoPackaging,
+          defaultPackagingType,
+          updatedAt: serverTimestamp(),
+        });
+        
+        // Update local state
+        setMerchantProfile({
+          ...merchantProfile,
+          usesEcoPackaging,
+          defaultPackagingType,
+        });
+        
+        alert('Eco-packaging settings saved successfully! 🌱');
+      }
+    } catch (error) {
+      console.error('Error saving eco settings:', error);
+      alert('Failed to save settings. Please try again.');
+    } finally {
+      setSavingEcoSettings(false);
     }
   };
 
@@ -522,6 +583,78 @@ export default function MerchantPage() {
           </Pressable>
         </View>
 
+        {/* Eco-Packaging Settings */}
+        <View style={styles.addItemSection}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionTitle}>🌱 Eco-Packaging Settings</ThemedText>
+          </View>
+          
+          <View style={styles.ecoSettingsCard}>
+            <View style={styles.ecoSettingRow}>
+              <View style={styles.ecoSettingInfo}>
+                <Text style={styles.ecoSettingTitle}>Enable Eco-Packaging</Text>
+                <Text style={styles.ecoSettingSubtitle}>All orders will use eco-friendly packaging</Text>
+              </View>
+              <Switch
+                value={usesEcoPackaging}
+                onValueChange={setUsesEcoPackaging}
+                trackColor={{ false: '#ccc', true: '#81C784' }}
+                thumbColor={usesEcoPackaging ? '#1A5D1A' : '#f4f3f4'}
+              />
+            </View>
+            
+            {usesEcoPackaging && (
+              <>
+                <View style={styles.divider} />
+                <Pressable
+                  style={styles.packagingTypeSelector}
+                  onPress={() => setPackagingModalVisible(true)}
+                >
+                  <View>
+                    <Text style={styles.packagingLabel}>Default Packaging Type</Text>
+                    <Text style={styles.packagingValue}>
+                      {defaultPackagingType === 'biodegradable' && '🍃 Biodegradable'}
+                      {defaultPackagingType === 'compostable' && '🌿 Compostable'}
+                      {defaultPackagingType === 'recyclable' && '♻️ Recyclable'}
+                      {defaultPackagingType === 'reusable' && '🔄 Reusable'}
+                    </Text>
+                  </View>
+                  <Text style={styles.selectArrow}>›</Text>
+                </Pressable>
+                
+                <Pressable
+                  style={[styles.saveButton, savingEcoSettings && styles.saveButtonDisabled]}
+                  onPress={saveEcoSettings}
+                  disabled={savingEcoSettings}
+                >
+                  <Text style={styles.saveButtonText}>
+                    {savingEcoSettings ? 'Saving...' : '💾 Save Settings'}
+                  </Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+
+        {/* Eco-Packaging Dashboard */}
+        <View style={styles.ecoSection}>
+          <Pressable
+            style={styles.ecoHeader}
+            onPress={() => setEcoDashboardExpanded(!ecoDashboardExpanded)}
+          >
+            <View style={styles.ecoHeaderLeft}>
+              <Text style={styles.ecoIcon}>🌱</Text>
+              <ThemedText style={styles.ecoTitle}>Eco-Packaging Dashboard</ThemedText>
+            </View>
+            <Text style={styles.expandIcon}>{ecoDashboardExpanded ? '▼' : '▶'}</Text>
+          </Pressable>
+          {ecoDashboardExpanded && (
+            <View style={styles.ecoDashboardContainer}>
+              <EcoDashboard ecoStats={ecoStats} />
+            </View>
+          )}
+        </View>
+
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#1A5D1A" />
@@ -635,6 +768,52 @@ export default function MerchantPage() {
       <SideBar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
       <NotificationSidebar visible={notificationVisible} onClose={() => setNotificationVisible(false)} />
       <CartSidebar visible={cartVisible} onClose={() => setCartVisible(false)} />
+      
+      {/* Packaging Type Selection Modal */}
+      <Modal
+        visible={packagingModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPackagingModalVisible(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => setPackagingModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Packaging Type</Text>
+            
+            {(['biodegradable', 'compostable', 'recyclable', 'reusable'] as PackagingType[]).map((type) => (
+              <Pressable
+                key={type}
+                style={[
+                  styles.packagingOption,
+                  defaultPackagingType === type && styles.packagingOptionSelected
+                ]}
+                onPress={() => {
+                  setDefaultPackagingType(type);
+                  setPackagingModalVisible(false);
+                }}
+              >
+                <Text style={styles.packagingOptionText}>
+                  {type === 'biodegradable' && '🍃 Biodegradable'}
+                  {type === 'compostable' && '🌿 Compostable'}
+                  {type === 'recyclable' && '♻️ Recyclable'}
+                  {type === 'reusable' && '🔄 Reusable'}
+                </Text>
+                {defaultPackagingType === type && <Text style={styles.checkmark}>✓</Text>}
+              </Pressable>
+            ))}
+            
+            <Pressable
+              style={styles.modalCloseButton}
+              onPress={() => setPackagingModalVisible(false)}
+            >
+              <Text style={styles.modalCloseText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -1029,5 +1208,170 @@ const styles = StyleSheet.create({
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  ecoSection: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  ecoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#E8F5E9',
+  },
+  ecoHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  ecoIcon: {
+    fontSize: 24,
+  },
+  ecoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2E7D32',
+  },
+  expandIcon: {
+    fontSize: 16,
+    color: '#2E7D32',
+  },
+  ecoDashboardContainer: {
+    backgroundColor: '#FFFFFF',
+  },
+  // Eco-packaging settings styles
+  ecoSettingsCard: {
+    backgroundColor: '#F9FFF9',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#C5E1A5',
+  },
+  ecoSettingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  ecoSettingInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  ecoSettingTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A5D1A',
+    marginBottom: 4,
+  },
+  ecoSettingSubtitle: {
+    fontSize: 12,
+    color: '#558B2F',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#C5E1A5',
+    marginVertical: 16,
+  },
+  packagingTypeSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  packagingLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  packagingValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A5D1A',
+  },
+  selectArrow: {
+    fontSize: 24,
+    color: '#1A5D1A',
+  },
+  saveButton: {
+    backgroundColor: '#1A5D1A',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A5D1A',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  packagingOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+    marginBottom: 12,
+  },
+  packagingOptionSelected: {
+    backgroundColor: '#E8F5E9',
+    borderWidth: 2,
+    borderColor: '#1A5D1A',
+  },
+  packagingOptionText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  checkmark: {
+    fontSize: 20,
+    color: '#1A5D1A',
+    fontWeight: '700',
+  },
+  modalCloseButton: {
+    marginTop: 8,
+    padding: 14,
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    color: '#666',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

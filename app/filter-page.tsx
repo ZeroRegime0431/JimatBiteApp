@@ -31,6 +31,9 @@ export default function FilterPage() {
   // Freshness filter
   const [selectedFreshness, setSelectedFreshness] = useState<string[]>([]);
   
+  // Eco-friendly filter
+  const [ecoFriendlyOnly, setEcoFriendlyOnly] = useState<boolean>(false);
+  
   // Price range
   const [priceRange, setPriceRange] = useState({ min: 0, max: 500 });
   const [customMinPrice, setCustomMinPrice] = useState('');
@@ -93,6 +96,7 @@ export default function FilterPage() {
       minPrice: minPrice,
       maxPrice: maxPrice,
       subcategories: selectedSubcategories,
+      ecoFriendlyOnly: ecoFriendlyOnly,
       active: true,
     };
 
@@ -119,6 +123,7 @@ export default function FilterPage() {
     setCustomMinPrice('');
     setCustomMaxPrice('');
     setSelectedSubcategories([]);
+    setEcoFriendlyOnly(false);
   };
 
   const getVisibleSubcategories = () => {
@@ -222,6 +227,35 @@ export default function FilterPage() {
               </Pressable>
             ))}
           </View>
+        </View>
+
+        {/* Eco-Friendly Filter */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Sustainability</Text>
+          <Pressable
+            style={[
+              styles.ecoFilterButton,
+              ecoFriendlyOnly && styles.ecoFilterButtonActive
+            ]}
+            onPress={() => setEcoFriendlyOnly(!ecoFriendlyOnly)}
+          >
+            <View style={styles.ecoFilterContent}>
+              <Text style={styles.ecoIcon}>🌱</Text>
+              <View style={styles.ecoTextContainer}>
+                <Text style={[
+                  styles.ecoFilterTitle,
+                  ecoFriendlyOnly && styles.ecoFilterTitleActive
+                ]}>Eco-Friendly Merchants</Text>
+                <Text style={styles.ecoFilterSubtitle}>Show only merchants using sustainable packaging</Text>
+              </View>
+              <View style={[
+                styles.ecoCheckbox,
+                ecoFriendlyOnly && styles.ecoCheckboxActive
+              ]}>
+                {ecoFriendlyOnly && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+            </View>
+          </Pressable>
         </View>
 
         {/* Subcategories */}
@@ -572,5 +606,60 @@ const styles = StyleSheet.create({
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Eco-Friendly filter styles
+  ecoFilterButton: {
+    backgroundColor: '#F9FFF9',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#C5E1A5',
+  },
+  ecoFilterButtonActive: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#1A5D1A',
+  },
+  ecoFilterContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ecoIcon: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  ecoTextContainer: {
+    flex: 1,
+  },
+  ecoFilterTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  ecoFilterTitleActive: {
+    color: '#1A5D1A',
+  },
+  ecoFilterSubtitle: {
+    fontSize: 12,
+    color: '#666',
+  },
+  ecoCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#C5E1A5',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ecoCheckboxActive: {
+    backgroundColor: '#1A5D1A',
+    borderColor: '#1A5D1A',
+  },
+  checkmark: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

@@ -1,27 +1,28 @@
 // Firestore database operations
 import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  serverTimestamp,
-  setDoc,
-  Timestamp,
-  updateDoc,
-  where
+    collection,
+    deleteDoc,
+    doc,
+    getDoc,
+    getDocs,
+    query,
+    serverTimestamp,
+    setDoc,
+    Timestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type {
-  Cart,
-  MenuItem,
-  MerchantAccount,
-  Order,
-  PaymentMethod,
-  Review,
-  UserProfile
+    Cart,
+    MenuItem,
+    MerchantAccount,
+    Order,
+    PaymentMethod,
+    Review,
+    UserProfile
 } from '../types';
+import { updateEcoStats } from './eco';
 
 // ============= USER PROFILE =============
 
@@ -339,6 +340,16 @@ export const createOrder = async (
       id: orderRef.id,
       orderDate: serverTimestamp(),
     });
+    
+    // Update eco-packaging stats if applicable
+    if (orderData.restaurantId && orderData.usesEcoPackaging !== undefined) {
+      await updateEcoStats(
+        orderData.restaurantId,
+        orderData.usesEcoPackaging,
+        orderData.packagingType
+      );
+    }
+    
     return { success: true, orderId: orderRef.id };
   } catch (error: any) {
     console.error('Error creating order:', error);

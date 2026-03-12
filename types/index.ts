@@ -95,6 +95,10 @@ export interface Order {
   
   // Multi-vendor fulfillment tracking
   fulfilledRestaurants?: string[]; // Array of restaurant names that have scanned QR
+  
+  // Eco-Packaging Info
+  usesEcoPackaging?: boolean;
+  packagingType?: PackagingType;
 }
 
 export interface PaymentMethod {
@@ -182,6 +186,58 @@ export interface MerchantAccount {
   createdAt: Date;
   updatedAt: Date;
   approvedAt?: Date;
+  
+  // Eco-Packaging Stats & Settings
+  ecoStats?: EcoPackagingStats;
+  usesEcoPackaging?: boolean; // Whether merchant has enabled eco-packaging
+  defaultPackagingType?: PackagingType; // Default packaging type for orders
+}
+
+export interface EcoPackagingStats {
+  totalOrders: number;
+  ecoOrders: number;
+  ecoPercentage: number;
+  points: number;
+  badges: EcoBadge[];
+  packagingTypes: PackagingType[];
+  lastUpdated: Date;
+}
+
+export type EcoBadge = 'green-starter' | 'eco-champion' | 'sustainability-hero';
+
+export type PackagingType = 'biodegradable' | 'compostable' | 'recyclable' | 'reusable';
+
+export interface EcoBadgeInfo {
+  id: EcoBadge;
+  name: string;
+  icon: string; // emoji
+  description: string;
+  requiredOrders: number;
+  color: string;
+}
+
+export interface EcoSupplier {
+  id: string;
+  name: string;
+  description: string;
+  products: EcoProduct[];
+  contactEmail: string;
+  contactPhone: string;
+  website?: string;
+  logoURL?: string;
+  rating?: number;
+  verified: boolean;
+  createdAt: Date;
+}
+
+export interface EcoProduct {
+  id: string;
+  name: string;
+  type: PackagingType;
+  description: string;
+  pricePerUnit: number;
+  minimumOrder: number;
+  imageURL?: string;
 }
 
 export interface Conversation {

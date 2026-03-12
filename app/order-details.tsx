@@ -11,6 +11,7 @@ import { db, storage } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
 import { getOrCreateConversation } from '../services/chat';
 import { fulfillOrderItems, getMerchantProfile, getOrderById, getUserOrders } from '../services/database';
+import { getMerchantsWithEcoPackaging } from '../services/eco';
 import type { Order } from '../types';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -27,9 +28,11 @@ export default function OrderDetailsScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [restaurantAddresses, setRestaurantAddresses] = useState<{[key: string]: string}>({});
+  const [ecoRestaurants, setEcoRestaurants] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadOrderDetails();
+    loadEcoMerchants();
   }, [orderId]);
 
   // Auto-refresh QR code every 2 minutes
@@ -117,6 +120,19 @@ export default function OrderDetailsScreen() {
     }
     
     setLoading(false);
+  };
+
+  const loadEcoMerchants = async () => {
+    try {
+      const result = await getMerchantsWithEcoPackaging();
+      if (result.success && result.data) {
+        // Create set of eco restaurant names
+        const ecoNames = new Set(result.data.map(m => m.storeName));
+        setEcoRestaurants(ecoNames);
+      }
+    } catch (error) {
+      console.error('Error loading eco merchants:', error);
+    }
   };
 
   const loadRestaurantAddresses = async (items: Order['items']) => {
@@ -475,7 +491,14 @@ export default function OrderDetailsScreen() {
                 <View style={styles.restaurantIcon}>
                   <Text style={styles.restaurantIconText}>{restaurantName.charAt(0)}</Text>
                 </View>
-                <Text style={styles.restaurantName}>{restaurantName}</Text>
+                <View style={styles.restaurantNameContainer}>
+                  <Text style={styles.restaurantName}>{restaurantName}</Text>
+                  {ecoRestaurants.has(restaurantName) && (
+                    <View style={styles.ecoBadge}>
+                      <Text style={styles.ecoBadgeText}>🌱 ECO</Text>
+                    </View>
+                  )}
+                </View>
                 
                 {/* Chat Button - Only for active orders */}
                 {isActiveOrder() && (
@@ -836,11 +859,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
+  restaurantNameContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   restaurantName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    flex: 1,
+  },
+  ecoBadge: {
+    backgroundColor: '#1A5D1A',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  ecoBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   chatButton: {
     backgroundColor: '#1A5D1A',

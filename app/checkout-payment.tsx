@@ -7,7 +7,7 @@ import { db } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
 import { createOrder, getCart, getUserPaymentMethods, saveCart } from '../services/database';
 // import { checkGeneralNotifications, sendOrderConfirmationNotification } from '../services/notifications';
-import type { CartItem } from '../types';
+import type { CartItem, PackagingType } from '../types';
 
 // SVG icons
 import ApplePaySvg from '../assets/PaymentMethod/icons/applepay.svg';
@@ -194,8 +194,31 @@ export default function CheckoutPaymentScreen() {
         return;
       }
 
-      // Create order in Firestore
-      const orderResult = await createOrder({
+      // Get merchant eco-packaging settings
+      const restaurantName = orderItems[0].restaurantName;
+      let merchantUsesEco = false;
+      let merchantPackagingType: PackagingType | undefined;
+      let actualMerchantId = orderItems[0].restaurantId;
+      
+      try {
+        // Look up merchant by storeName since menu items use different restaurantIds
+        const merchantsRef = collection(db, 'merchants');
+        const q = query(merchantsRef, where('storeName', '==', restaurantName));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+          const merchantDoc = snapshot.docs[0];
+          const merchantData = merchantDoc.data();
+          actualMerchantId = merchantDoc.id; // Use actual merchant document ID
+          merchantUsesEco = merchantData.usesEcoPackaging || false;
+          merchantPackagingType = merchantData.defaultPackagingType;
+        }
+      } catch (error) {
+        console.error('Error fetching merchant eco settings:', error);
+      }
+
+      // Build order data (conditionally include packagingType only if defined)
+      const orderData: any = {
         userId: user.uid,
         items: orderItems,
         totalAmount: subtotal,
@@ -215,13 +238,20 @@ export default function CheckoutPaymentScreen() {
         },
         paymentMethod: paymentMethodName,
         orderDate: new Date(),
-        restaurantId: orderItems[0].restaurantId,
+        restaurantId: actualMerchantId, // Use the looked-up merchant ID
         restaurantName: orderItems[0].restaurantName,
-      });
+        usesEcoPackaging: merchantUsesEco,
+      };
+
+      // Only include packagingType if merchant has set one
+      if (merchantPackagingType) {
+        orderData.packagingType = merchantPackagingType;
+      }
+
+      // Create order in Firestore
+      const orderResult = await createOrder(orderData);
 
       if (orderResult.success) {
-        console.log('Order created successfully:', orderResult.orderId);
-        
         // Notifications disabled in Expo Go
         
         // Clear the cart after successful order
@@ -455,6 +485,13 @@ const styles = StyleSheet.create({
   addressText: {
     fontSize: 14,
     color: '#333',
+  },
+  ecoPackagingBox: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 15,
+    padding: 15,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
   },
   summaryBox: {
     backgroundColor: '#FFF',

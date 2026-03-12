@@ -11,6 +11,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { db, storage } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
 import { addFavorite, getFavorites, getMenuItems, getMerchantProfile, removeFavorite } from '../services/database';
+import { getMerchantsWithEcoPackaging } from '../services/eco';
 // import { registerForPushNotifications } from '../services/notifications'; // Commented out - requires development build
 import { MenuItem } from '../types';
 import CartSidebar from './cart-sidebar';
@@ -77,6 +78,11 @@ export default function HomePage() {
   const [activeFilters, setActiveFilters] = useState<any>(null);
   const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
   const [filterLoading, setFilterLoading] = useState(false);
+  
+  // Eco badge state
+  const [merchantEcoStats, setMerchantEcoStats] = useState<{[key: string]: any}>({});
+  const [merchantUsesEco, setMerchantUsesEco] = useState<{[key: string]: boolean}>({});
+  const [merchantUsesEcoByName, setMerchantUsesEcoByName] = useState<{[key: string]: boolean}>({});
 
   // Handle hardware back button - prevent going back to auth screens
   useFocusEffect(
@@ -123,6 +129,38 @@ export default function HomePage() {
     loadUserFavorites();
     // registerPushNotifications(); // Commented out - requires development build
   }, []);
+
+  const loadAllMerchantEcoStats = async () => {
+    try {
+      const merchantsRef = collection(db, 'merchants');
+      const q = query(merchantsRef, where('status', '==', 'approved'));
+      const snapshot = await getDocs(q);
+      
+      const statsMap: {[key: string]: any} = {};
+      const usesEcoMap: {[key: string]: boolean} = {};
+      const usesEcoByNameMap: {[key: string]: boolean} = {};
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.ecoStats) {
+          statsMap[doc.id] = data.ecoStats;
+        }
+        const usesEco = data.usesEcoPackaging || false;
+        usesEcoMap[doc.id] = usesEco;
+        
+        // Also map by store name for name-based matching
+        if (data.storeName) {
+          usesEcoByNameMap[data.storeName] = usesEco;
+        }
+      });
+      
+      setMerchantEcoStats(statsMap);
+      setMerchantUsesEco(usesEcoMap);
+      setMerchantUsesEcoByName(usesEcoByNameMap);
+    } catch (error) {
+      console.error('Error loading merchant eco stats:', error);
+    }
+  };
 
   // Commented out - Push notifications require development build (not supported in Expo Go SDK 53+)
   // const registerPushNotifications = async () => {
@@ -182,8 +220,25 @@ export default function HomePage() {
       }
     }
     
+    // Get eco merchants if eco filter is enabled (match by store name)
+    let ecoMerchantNames: Set<string> | null = null;
+    if (filters.ecoFriendlyOnly) {
+      const ecoResult = await getMerchantsWithEcoPackaging();
+      if (ecoResult.success && ecoResult.data) {
+        // Create a set of store names from eco merchants
+        ecoMerchantNames = new Set(ecoResult.data.map(m => m.storeName));
+      }
+    }
+    
     // Apply filters
     const filtered = allItems.filter(item => {
+      // Eco-friendly filter (match by restaurant name)
+      if (filters.ecoFriendlyOnly && ecoMerchantNames) {
+        if (!ecoMerchantNames.has(item.restaurantName)) {
+          return false;
+        }
+      }
+      
       // Price filter
       if (item.price < filters.minPrice || item.price > filters.maxPrice) {
         return false;
@@ -223,6 +278,7 @@ export default function HomePage() {
         loadBestSellers(),
         loadRecommendations(),
         loadPromoItem(),
+        loadAllMerchantEcoStats(),
       ]);
     } catch (error) {
       console.error('Error loading home data:', error);
@@ -476,6 +532,11 @@ export default function HomePage() {
     )
   );
 
+  // Display all items without eco filter
+  const displayedBestSellers = bestSellers;
+  const displayedRecommendations = recommendations;
+  const displayedPromoItem = promoItem;
+
   return (
     <ThemedView style={styles.container}>
       <SideBar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
@@ -708,11 +769,12 @@ export default function HomePage() {
           ) : (
             <FlatList
               horizontal
-              data={bestSellers}
+              data={displayedBestSellers}
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => {
                 const displayImageURL = imageURLs[item.id] || item.imageURL;
+                const merchantHasEco = merchantUsesEco[item.restaurantId] || merchantUsesEcoByName[item.restaurantName] || false;
                 return (
                   <Pressable style={styles.card} onPress={() => handleItemPress(item)}>
                     <ExpoImage 
@@ -721,6 +783,11 @@ export default function HomePage() {
                       contentFit="cover"
                       transition={300}
                     />
+                    {merchantHasEco && (
+                      <View style={styles.ecoIconBadge}>
+                        <Text style={styles.ecoIconText}>🌱</Text>
+                      </View>
+                    )}
                     <ThemedText type="defaultSemiBold" style={styles.cardTitle}>{item.name}</ThemedText>
                     <ThemedText style={styles.cardPrice}>RM{item.price.toFixed(2)}</ThemedText>
                   </Pressable>
@@ -736,9 +803,9 @@ export default function HomePage() {
               <ThemedText type="defaultSemiBold" style={{ color: '#fff', fontSize: 18 }}>New Customer Code : Promo4377</ThemedText>
               <ThemedText style={{ color: '#fff', marginTop: 8, fontSize: 20, fontWeight: '700' }}>50% OFF</ThemedText>
             </View>
-            {promoItem && (
+            {displayedPromoItem && (
               <ExpoImage 
-                source={{ uri: imageURLs[promoItem.id] || promoItem.imageURL }} 
+                source={{ uri: imageURLs[displayedPromoItem.id] || displayedPromoItem.imageURL }} 
                 style={styles.promoImage}
                 contentFit="cover"
                 transition={300}
@@ -760,12 +827,13 @@ export default function HomePage() {
           ) : (
             <FlatList
               horizontal
-              data={recommendations}
+              data={displayedRecommendations}
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => {
                 const displayImageURL = imageURLs[item.id] || item.imageURL;
                 const isLiked = likedItems[item.id] || false;
+                const merchantHasEco = merchantUsesEco[item.restaurantId] || merchantUsesEcoByName[item.restaurantName] || false;
                 return (
                   <Pressable style={styles.recommendCard} onPress={() => handleItemPress(item)}>
                     <View style={styles.recommendImageContainer}>
@@ -775,6 +843,11 @@ export default function HomePage() {
                         contentFit="cover"
                         transition={300}
                       />
+                      {merchantHasEco && (
+                        <View style={styles.ecoIconBadgeRecommend}>
+                          <Text style={styles.ecoIconText}>🌱</Text>
+                        </View>
+                      )}
                       <Pressable 
                         style={[styles.likeButton, isLiked && styles.likeButtonActive]} 
                         onPress={(e) => toggleFavorite(item, e)}
@@ -791,6 +864,11 @@ export default function HomePage() {
                       <ThemedText type="defaultSemiBold" style={styles.recommendTitle}>{item.name}</ThemedText>
                       <ThemedText style={styles.distanceText}>{item.restaurantName}</ThemedText>
                     </View>
+                    {merchantHasEco && merchantEcoStats[item.restaurantId] && (
+                      <View style={styles.ecoIndicator}>
+                        <Text style={styles.ecoText}>🌱 {merchantEcoStats[item.restaurantId].ecoPercentage || 0}% Eco Orders</Text>
+                      </View>
+                    )}
                     <ThemedText style={styles.recommendPrice}>RM{item.price.toFixed(2)}</ThemedText>
                   </Pressable>
                 );
@@ -914,6 +992,41 @@ const styles = StyleSheet.create({
   recommendTitle: { fontSize: 14, color: '#333', flex: 1, bottom: 48 },
   distanceText: { fontSize: 12, color: '#888', marginLeft: 8, left: -24, bottom: 48 },
   recommendPrice: { marginTop: 2, color: '#1A5D1A', fontWeight: '700', bottom: 48 },
+  ecoIndicator: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+    bottom: 48,
+  },
+  ecoText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2E7D32',
+  },
+  ecoIconBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(232, 245, 233, 0.95)',
+    borderRadius: 16,
+    padding: 6,
+    zIndex: 1,
+  },
+  ecoIconBadgeRecommend: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(232, 245, 233, 0.95)',
+    borderRadius: 16,
+    padding: 6,
+    zIndex: 1,
+  },
+  ecoIconText: {
+    fontSize: 16,
+  },
 
   adminFloatingContainer: {
     position: 'absolute',

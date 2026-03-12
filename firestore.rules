@@ -1,0 +1,127 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    match /users/{userId} {
+      allow read: if true;
+      allow update: if true;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+    }
+    
+    match /deviceTokens/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /merchants/{merchantId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == merchantId;
+      // Allow merchant to update their own document OR allow admin to update any merchant
+      // OR allow any authenticated user to update only ecoStats field
+      allow update: if request.auth != null && 
+                       (request.auth.uid == merchantId || 
+                        request.auth.uid == 'a5L1LZoUCEZxcCeeWxFW7vIow323' ||
+                        request.writeFields.hasOnly(['ecoStats']));
+      allow delete: if request.auth != null && request.auth.uid == merchantId;
+    }
+    
+    match /menuItems/{itemId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    match /carts/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /orders/{orderId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null;
+    }
+    
+    match /restaurants/{restaurantId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    match /favorites/{favoriteId} {
+      allow get: if request.auth != null && favoriteId.matches('^' + request.auth.uid + '_.*');
+      allow list: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    
+    match /users/{userId}/paymentMethods/{methodId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /addresses/{addressId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    match /paymentMethods/{methodId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    match /notificationSettings/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /pushTokens/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    match /merchant_accounts/{merchantId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == merchantId;
+    }
+    
+    // Conversations collection
+    match /conversations/{conversationId} {
+      // Allow get for authenticated users who are part of the conversation
+      allow get: if request.auth != null && 
+                    (request.auth.uid == resource.data.userId || 
+                     request.auth.uid == resource.data.merchantId ||
+                     request.auth.uid == 'a5L1LZoUCEZxcCeeWxFW7vIow323'); // admin
+      
+      // Allow list for authenticated users (filtering happens in query)
+      allow list: if request.auth != null;
+      
+      // Allow create for authenticated users
+      allow create: if request.auth != null;
+      
+      // Allow update for participants
+      allow update: if request.auth != null && 
+                       (request.auth.uid == resource.data.userId || 
+                        request.auth.uid == resource.data.merchantId ||
+                        request.auth.uid == 'a5L1LZoUCEZxcCeeWxFW7vIow323');
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        // Allow read for authenticated users who are part of the conversation
+        allow read: if request.auth != null && 
+                       (request.auth.uid == get(/databases/$(database)/documents/conversations/$(conversationId)).data.userId || 
+                        request.auth.uid == get(/databases/$(database)/documents/conversations/$(conversationId)).data.merchantId ||
+                        request.auth.uid == 'a5L1LZoUCEZxcCeeWxFW7vIow323');
+        
+        // Allow create for authenticated users who are part of the conversation
+        allow create: if request.auth != null && 
+                         (request.auth.uid == get(/databases/$(database)/documents/conversations/$(conversationId)).data.userId || 
+                          request.auth.uid == get(/databases/$(database)/documents/conversations/$(conversationId)).data.merchantId ||
+                          request.auth.uid == 'a5L1LZoUCEZxcCeeWxFW7vIow323');
+        
+        // Allow update for message sender
+        allow update: if request.auth != null && request.auth.uid == resource.data.user._id;
+      }
+    }
+  }
+}

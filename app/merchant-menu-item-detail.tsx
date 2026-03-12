@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { getDownloadURL, ref } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -25,6 +25,7 @@ export default function MerchantMenuItemDetail() {
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [merchantUsesEco, setMerchantUsesEco] = useState(false);
 
   useEffect(() => {
     loadItemDetails();
@@ -152,6 +153,13 @@ export default function MerchantMenuItemDetail() {
       setReviewCount(matchedReviews.length);
       setAvgRating(ratingAvg);
       setReviews(matchedReviews);
+
+      // Load merchant eco status
+      const merchantDoc = await getDoc(doc(db, 'merchants', itemResult.data.restaurantId));
+      if (merchantDoc.exists()) {
+        const merchantData = merchantDoc.data();
+        setMerchantUsesEco(merchantData.usesEcoPackaging || false);
+      }
     } catch (error) {
       console.error('Error loading menu item details:', error);
       Alert.alert('Error', 'Something went wrong');
@@ -358,6 +366,19 @@ export default function MerchantMenuItemDetail() {
             </View>
           )}
         </View>
+
+        {/* Eco-Friendly Packaging Banner */}
+        {merchantUsesEco && (
+          <View style={styles.ecoBannerCard}>
+            <View style={styles.ecoBannerHeader}>
+              <Text style={styles.ecoBannerIcon}>🌱</Text>
+              <View style={styles.ecoBannerTextContainer}>
+                <Text style={styles.ecoBannerTitle}>Eco-Friendly Packaging Enabled</Text>
+                <Text style={styles.ecoBannerSubtitle}>All orders from you will use sustainable packaging</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
@@ -641,5 +662,37 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 13,
     color: '#374151',
+  },
+  // Eco-Friendly Banner Styles
+  ecoBannerCard: {
+    backgroundColor: '#F1F8E9',
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginVertical: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#1A5D1A',
+  },
+  ecoBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ecoBannerIcon: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  ecoBannerTextContainer: {
+    flex: 1,
+  },
+  ecoBannerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A5D1A',
+    marginBottom: 4,
+  },
+  ecoBannerSubtitle: {
+    fontSize: 13,
+    color: '#558B2F',
+    lineHeight: 18,
   },
 });

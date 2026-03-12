@@ -3,6 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getMenuItems } from '../services/database';
+import { getMerchantsWithEcoPackaging } from '../services/eco';
 import { MenuItem } from '../types';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
@@ -59,6 +60,8 @@ export default function CategoryBlindBoxScreen() {
   const [activeFilters, setActiveFilters] = useState<any>(null);
   const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
   const [filterLoading, setFilterLoading] = useState(false);
+  const [merchantUsesEco, setMerchantUsesEco] = useState<{[key: string]: boolean}>({});
+  const [merchantUsesEcoByName, setMerchantUsesEcoByName] = useState<{[key: string]: boolean}>({});
 
   useEffect(() => {
     const updateTime = () => {
@@ -114,8 +117,25 @@ export default function CategoryBlindBoxScreen() {
       items = result.data;
     }
     
+    // Get eco merchants if eco filter is enabled (match by store name)
+    let ecoMerchantNames: Set<string> | null = null;
+    if (filters.ecoFriendlyOnly) {
+      const ecoResult = await getMerchantsWithEcoPackaging();
+      if (ecoResult.success && ecoResult.data) {
+        // Create a set of store names from eco merchants
+        ecoMerchantNames = new Set(ecoResult.data.map(m => m.storeName));
+      }
+    }
+    
     // Apply filters
     const filtered = items.filter(item => {
+      // Eco-friendly filter (match by restaurant name)
+      if (filters.ecoFriendlyOnly && ecoMerchantNames) {
+        if (!ecoMerchantNames.has(item.restaurantName)) {
+          return false;
+        }
+      }
+      
       // Price filter
       if (item.price < filters.minPrice || item.price > filters.maxPrice) {
         return false;
@@ -153,8 +173,33 @@ export default function CategoryBlindBoxScreen() {
     const result = await getMenuItems('blindbox');
     if (result.success && result.data) {
       setFoodItems(result.data);
+      await loadMerchantEcoStatus(result.data);
     }
     setLoading(false);
+  };
+
+  const loadMerchantEcoStatus = async (items: MenuItem[]) => {
+    try {
+      // Get all eco merchants
+      const ecoResult = await getMerchantsWithEcoPackaging();
+      if (!ecoResult.success || !ecoResult.data) {
+        return;
+      }
+      
+      const ecoMap: {[key: string]: boolean} = {};
+      const ecoByNameMap: {[key: string]: boolean} = {};
+      
+      // Map eco status by both ID and storeName
+      for (const merchant of ecoResult.data) {
+        ecoMap[merchant.id] = true;
+        ecoByNameMap[merchant.storeName] = true;
+      }
+      
+      setMerchantUsesEco(ecoMap);
+      setMerchantUsesEcoByName(ecoByNameMap);
+    } catch (error) {
+      console.error('Error loading merchant eco status:', error);
+    }
   };
 
   const categories: CategoryItem[] = [
@@ -247,7 +292,16 @@ export default function CategoryBlindBoxScreen() {
                         }
                       })}
                     >
-                      <Image source={{ uri: item.imageURL }} style={styles.filterResultImage} />
+                      <View style={styles.filterResultImageContainer}>
+                        <Image source={{ uri: item.imageURL }} style={styles.filterResultImage} />
+                        {(merchantUsesEco[item.restaurantId] || merchantUsesEcoByName[item.restaurantName]) && (
+                          <View style={styles.ecoBadgeOverlay}>
+                            <View style={styles.ecoBadge}>
+                              <Text style={styles.ecoBadgeText}>🌱 ECO</Text>
+                            </View>
+                          </View>
+                        )}
+                      </View>
                       <View style={styles.filterResultInfo}>
                         <Text style={styles.filterResultName}>{item.name}</Text>
                         <Text style={styles.filterResultRestaurant}>{item.restaurantName}</Text>
@@ -400,6 +454,13 @@ export default function CategoryBlindBoxScreen() {
                             <Text style={styles.statusBadgeText}>LAST CALL</Text>
                           </View>
                         )}
+                      </View>
+                    )}
+                    {(merchantUsesEco[item.restaurantId] || merchantUsesEcoByName[item.restaurantName]) && (
+                      <View style={styles.ecoBadgeOverlay}>
+                        <View style={styles.ecoBadge}>
+                          <Text style={styles.ecoBadgeText}>🌱 ECO</Text>
+                        </View>
                       </View>
                     )}
                   </View>
@@ -669,6 +730,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  ecoBadgeOverlay: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+  },
+  ecoBadge: {
+    backgroundColor: '#1B5E20',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  ecoBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   foodInfo: {
     padding: 15,
   },
@@ -835,6 +912,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
+  },
+  filterResultImageContainer: {
+    width: 80,
+    height: 80,
+    position: 'relative',
   },
   filterResultImage: {
     width: 80,

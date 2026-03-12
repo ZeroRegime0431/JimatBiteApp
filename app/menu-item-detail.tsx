@@ -1,9 +1,10 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
+import { doc, getDoc } from 'firebase/firestore';
 import { getDownloadURL, ref } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { storage } from '../config/firebase';
+import { db, storage } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
 import { addFavorite, isFavorite as checkIsFavorite, getCart, removeFavorite, saveCart } from '../services/database';
 import { CartItem, MenuItem } from '../types';
@@ -41,6 +42,7 @@ export default function MenuItemDetailScreen() {
   const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [merchantUsesEco, setMerchantUsesEco] = useState(false);
 
   // Parse item data from params
   const item: MenuItem = {
@@ -132,7 +134,20 @@ export default function MenuItemDetailScreen() {
   useEffect(() => {
     checkCartStatus();
     checkFavoriteStatus();
+    loadMerchantEcoStatus();
   }, []);
+
+  const loadMerchantEcoStatus = async () => {
+    try {
+      const merchantDoc = await getDoc(doc(db, 'merchants', item.restaurantId));
+      if (merchantDoc.exists()) {
+        const merchantData = merchantDoc.data();
+        setMerchantUsesEco(merchantData.usesEcoPackaging || false);
+      }
+    } catch (error) {
+      console.error('Error loading merchant eco status:', error);
+    }
+  };
 
   const checkCartStatus = async () => {
     const user = getCurrentUser();
@@ -418,6 +433,19 @@ export default function MenuItemDetailScreen() {
               ) : (item.preparedTime || item.expiryTime) ? (
                 <Text style={styles.savingsText}>🍽️ Check preparation and expiry details above</Text>
               ) : null}
+            </View>
+          </View>
+        )}
+
+        {/* Eco-Friendly Packaging Banner */}
+        {merchantUsesEco && (
+          <View style={styles.ecoBannerCard}>
+            <View style={styles.ecoBannerHeader}>
+              <Text style={styles.ecoBannerIcon}>🌱</Text>
+              <View style={styles.ecoBannerTextContainer}>
+                <Text style={styles.ecoBannerTitle}>Eco-Friendly Packaging</Text>
+                <Text style={styles.ecoBannerSubtitle}>This merchant uses sustainable packaging for all orders</Text>
+              </View>
             </View>
           </View>
         )}
@@ -869,5 +897,37 @@ const styles = StyleSheet.create({
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Eco-Friendly Banner Styles
+  ecoBannerCard: {
+    backgroundColor: '#F1F8E9',
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginVertical: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#1A5D1A',
+  },
+  ecoBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ecoBannerIcon: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  ecoBannerTextContainer: {
+    flex: 1,
+  },
+  ecoBannerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A5D1A',
+    marginBottom: 4,
+  },
+  ecoBannerSubtitle: {
+    fontSize: 13,
+    color: '#558B2F',
+    lineHeight: 18,
   },
 });

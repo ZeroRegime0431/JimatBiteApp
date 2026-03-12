@@ -3,6 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getMenuItems } from '../services/database';
+import { getMerchantsWithEcoPackaging } from '../services/eco';
 import { MenuItem } from '../types';
 import CartSidebar from './cart-sidebar';
 import NotificationSidebar from './notification-sidebar';
@@ -59,6 +60,8 @@ export default function CategoryMealScreen() {
   const [activeFilters, setActiveFilters] = useState<any>(null);
   const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
   const [filterLoading, setFilterLoading] = useState(false);
+  const [merchantUsesEco, setMerchantUsesEco] = useState<{[key: string]: boolean}>({});
+  const [merchantUsesEcoByName, setMerchantUsesEcoByName] = useState<{[key: string]: boolean}>({});
 
   useEffect(() => {
     const updateTime = () => {
@@ -114,8 +117,25 @@ export default function CategoryMealScreen() {
       items = result.data;
     }
     
+    // Get eco merchants if eco filter is enabled (match by store name)
+    let ecoMerchantNames: Set<string> | null = null;
+    if (filters.ecoFriendlyOnly) {
+      const ecoResult = await getMerchantsWithEcoPackaging();
+      if (ecoResult.success && ecoResult.data) {
+        // Create a set of store names from eco merchants
+        ecoMerchantNames = new Set(ecoResult.data.map(m => m.storeName));
+      }
+    }
+    
     // Apply filters
     const filtered = items.filter(item => {
+      // Eco-friendly filter (match by restaurant name)
+      if (filters.ecoFriendlyOnly && ecoMerchantNames) {
+        if (!ecoMerchantNames.has(item.restaurantName)) {
+          return false;
+        }
+      }
+      
       // Price filter
       if (item.price < filters.minPrice || item.price > filters.maxPrice) {
         return false;
@@ -153,8 +173,33 @@ export default function CategoryMealScreen() {
     const result = await getMenuItems('meal');
     if (result.success && result.data) {
       setFoodItems(result.data);
+      await loadMerchantEcoStatus(result.data);
     }
     setLoading(false);
+  };
+
+  const loadMerchantEcoStatus = async (items: MenuItem[]) => {
+    try {
+      // Get all eco merchants
+      const ecoResult = await getMerchantsWithEcoPackaging();
+      if (!ecoResult.success || !ecoResult.data) {
+        return;
+      }
+      
+      const ecoMap: {[key: string]: boolean} = {};
+      const ecoByNameMap: {[key: string]: boolean} = {};
+      
+      // Map eco status by both ID and storeName
+      for (const merchant of ecoResult.data) {
+        ecoMap[merchant.id] = true;
+        ecoByNameMap[merchant.storeName] = true;
+      }
+      
+      setMerchantUsesEco(ecoMap);
+      setMerchantUsesEcoByName(ecoByNameMap);
+    } catch (error) {
+      console.error('Error loading merchant eco status:', error);
+    }
   };
 
   const categories: CategoryItem[] = [
@@ -402,6 +447,13 @@ export default function CategoryMealScreen() {
                             <Text style={styles.statusBadgeText}>LAST CALL</Text>
                           </View>
                         )}
+                      </View>
+                    )}
+                    {(merchantUsesEco[item.restaurantId] || merchantUsesEcoByName[item.restaurantName]) && (
+                      <View style={styles.ecoBadgeOverlay}>
+                        <View style={styles.ecoBadge}>
+                          <Text style={styles.ecoBadgeText}>🌱 ECO</Text>
+                        </View>
                       </View>
                     )}
                   </View>
@@ -896,5 +948,22 @@ const styles = StyleSheet.create({
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Eco-Friendly Badge Styles
+  ecoBadgeOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+  },
+  ecoBadge: {
+    backgroundColor: 'rgba(26, 93, 26, 0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  ecoBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
