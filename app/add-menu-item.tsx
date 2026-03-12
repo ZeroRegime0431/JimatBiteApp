@@ -4,19 +4,20 @@ import { collection, doc, getDocs, query, serverTimestamp, setDoc, Timestamp } f
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    Image,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    View
 } from 'react-native';
 import { db, storage } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
+import { getMerchantProfile } from '../services/database';
 
 // Icons
 import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
@@ -61,6 +62,7 @@ export default function AddMenuItemScreen() {
   }, []);
 
   React.useEffect(() => {
+    loadMerchantProfile();
     fetchRestaurantCount();
     fetchCategoryItemCount();
   }, []);
@@ -68,6 +70,21 @@ export default function AddMenuItemScreen() {
   React.useEffect(() => {
     fetchCategoryItemCount();
   }, [category]);
+
+  const loadMerchantProfile = async () => {
+    const user = getCurrentUser();
+    if (!user) return;
+
+    try {
+      const result = await getMerchantProfile(user.uid);
+      if (result.success && result.data) {
+        // Auto-fill restaurant name from merchant's profile
+        setRestaurantName(result.data.storeName);
+      }
+    } catch (error) {
+      console.error('Error loading merchant profile:', error);
+    }
+  };
 
   const fetchRestaurantCount = async () => {
     try {
@@ -530,12 +547,17 @@ export default function AddMenuItemScreen() {
 
           {/* Restaurant Name */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Restaurant Name *</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Restaurant Name *</Text>
+              <Text style={styles.helperText}>
+                (From your merchant profile)
+              </Text>
+            </View>
             <TextInput
-              style={styles.input}
-              placeholder="e.g., Warung Pak Ali"
+              style={[styles.input, styles.readOnlyInput]}
+              placeholder="Loading from profile..."
               value={restaurantName}
-              onChangeText={setRestaurantName}
+              editable={false}
               placeholderTextColor="#999"
             />
           </View>
@@ -826,6 +848,11 @@ const styles = StyleSheet.create({
     color: '#333',
     borderWidth: 1,
     borderColor: '#E0E0E0',
+  },
+  readOnlyInput: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#A5D6A7',
+    color: '#2E7D32',
   },
   textArea: {
     minHeight: 100,

@@ -414,6 +414,67 @@ export const updateOrderStatus = async (
   }
 };
 
+// Fulfill items for a specific merchant (multi-vendor orders)
+export const fulfillOrderItems = async (
+  orderId: string,
+  merchantUid: string,
+  restaurantName: string
+): Promise<{ success: boolean; allFulfilled?: boolean; error?: string }> => {
+  try {
+    const orderRef = doc(db, 'orders', orderId);
+    const orderSnap = await getDoc(orderRef);
+    
+    if (!orderSnap.exists()) {
+      return { success: false, error: 'Order not found' };
+    }
+    
+    const orderData = orderSnap.data() as Order;
+    const now = new Date();
+    const updatedItems = orderData.items.map(item => {
+      // Mark items belonging to this merchant as fulfilled
+      if (item.restaurantName === restaurantName && !item.fulfilled) {
+        return {
+          ...item,
+          fulfilled: true,
+          fulfilledBy: merchantUid,
+          fulfilledAt: now
+        };
+      }
+      return item;
+    });
+    
+    // Check if all items are now fulfilled
+    const allFulfilled = updatedItems.every(item => item.fulfilled === true);
+    
+    // Track which restaurants have fulfilled their items
+    const fulfilledRestaurants = orderData.fulfilledRestaurants || [];
+    if (!fulfilledRestaurants.includes(restaurantName)) {
+      fulfilledRestaurants.push(restaurantName);
+    }
+    
+    // Update order status based on fulfillment
+    let newStatus: Order['status'] = orderData.status;
+    if (allFulfilled) {
+      newStatus = 'delivered';
+    } else if (fulfilledRestaurants.length > 0) {
+      newStatus = 'partially-fulfilled';
+    }
+    
+    // Update order in Firestore
+    await updateDoc(orderRef, {
+      items: updatedItems,
+      status: newStatus,
+      fulfilledRestaurants: fulfilledRestaurants,
+      ...(allFulfilled ? { actualDeliveryTime: serverTimestamp() } : {})
+    });
+    
+    return { success: true, allFulfilled };
+  } catch (error: any) {
+    console.error('Error fulfilling order items:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // ============= PAYMENT METHODS =============
 
 export const savePaymentMethod = async (

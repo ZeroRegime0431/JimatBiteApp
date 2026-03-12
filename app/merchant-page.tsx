@@ -53,7 +53,9 @@ export default function MerchantPage() {
   const [monthlySales, setMonthlySales] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
   const [salesTrend, setSalesTrend] = useState<{ label: string; value: number }[]>([]);
-  const maxSalesValue = salesTrend.length > 0 ? Math.max(...salesTrend.map(item => item.value)) : 1;
+  const [monthlySalesTrend, setMonthlySalesTrend] = useState<{ label: string; value: number }[]>([]);
+  const maxSalesValue = salesTrend.length > 0 ? Math.max(1, Math.max(...salesTrend.map(item => item.value))) : 1;
+  const maxMonthlySalesValue = monthlySalesTrend.length > 0 ? Math.max(1, Math.max(...monthlySalesTrend.map(item => item.value))) : 1;
 
   // Handle hardware back button - prevent going back to auth screens
   useFocusEffect(
@@ -154,15 +156,35 @@ export default function MerchantPage() {
         
         // Filter orders by restaurant name if not admin
         if (!isAdmin && merchantProfile) {
-          // Only show orders for this merchant's restaurant
-          if (order.restaurantName !== merchantProfile.storeName) {
-            return; // Skip this order
+          // Check if this order contains items from this merchant's restaurant
+          const hasItemsFromThisRestaurant = order.items.some(
+            item => item.restaurantName === merchantProfile.storeName
+          );
+          
+          if (!hasItemsFromThisRestaurant) {
+            return; // Skip this order - no items from this restaurant
+          }
+          
+          // Check if this merchant has already fulfilled their items
+          const merchantItems = order.items.filter(
+            item => item.restaurantName === merchantProfile.storeName
+          );
+          const allMerchantItemsFulfilled = merchantItems.every(item => item.fulfilled === true);
+          
+          // If all this merchant's items are fulfilled, only show in completed
+          if (allMerchantItemsFulfilled && order.status !== 'cancelled') {
+            completed.push(order);
+            userIds.add(order.userId);
+            return;
           }
         }
         
         userIds.add(order.userId);
         
-        if (order.status === 'pending') {
+        // Categorize orders by status
+        if (order.status === 'pending' || order.status === 'confirmed' || 
+            order.status === 'preparing' || order.status === 'partially-fulfilled' || 
+            order.status === 'ready-for-pickup' || order.status === 'on-the-way') {
           pending.push(order);
         } else if (order.status === 'delivered') {
           completed.push(order);
@@ -266,6 +288,31 @@ export default function MerchantPage() {
     }
     
     setSalesTrend(trend);
+    
+    // Generate 30-day sales trend (grouped by weeks)
+    const monthlyTrend: { label: string; value: number }[] = [];
+    const weeksCount = 4;
+    
+    for (let i = weeksCount - 1; i >= 0; i--) {
+      const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
+      const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+      
+      let weekRevenue = 0;
+      deliveredOrders.forEach(order => {
+        const orderTime = order.orderDate.getTime();
+        if (orderTime >= weekStart.getTime() && orderTime < weekEnd.getTime()) {
+          weekRevenue += order.grandTotal;
+        }
+      });
+      
+      // Format as "Week 1", "Week 2", "Week 3", "Week 4"
+      monthlyTrend.push({
+        label: `W${weeksCount - i}`,
+        value: weekRevenue
+      });
+    }
+    
+    setMonthlySalesTrend(monthlyTrend);
   };
 
   const formatDate = (date: Date) => {
@@ -393,6 +440,36 @@ export default function MerchantPage() {
               const barHeight = Math.max(8, (item.value / maxSalesValue) * 120);
               return (
                 <View key={item.label} style={styles.chartItem}>
+                  {item.value > 0 && (
+                    <ThemedText style={styles.chartValue}>
+                      RM{item.value.toFixed(0)}
+                    </ThemedText>
+                  )}
+                  <View style={styles.chartBarWrapper}>
+                    <View style={[styles.chartBar, { height: barHeight }]} />
+                  </View>
+                  <ThemedText style={styles.chartLabel}>{item.label}</ThemedText>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.chartCard}>
+          <View style={styles.chartHeader}>
+            <ThemedText style={styles.chartTitle}>Monthly Sales Trend</ThemedText>
+            <ThemedText style={styles.chartSubtitle}>Last 4 weeks</ThemedText>
+          </View>
+          <View style={styles.chartArea}>
+            {monthlySalesTrend.map((item) => {
+              const barHeight = Math.max(8, (item.value / maxMonthlySalesValue) * 120);
+              return (
+                <View key={item.label} style={styles.chartItem}>
+                  {item.value > 0 && (
+                    <ThemedText style={styles.chartValue}>
+                      RM{item.value.toFixed(0)}
+                    </ThemedText>
+                  )}
                   <View style={styles.chartBarWrapper}>
                     <View style={[styles.chartBar, { height: barHeight }]} />
                   </View>
@@ -672,11 +749,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    height: 140,
+    height: 160,
+    paddingTop: 20,
   },
   chartItem: {
     alignItems: 'center',
-    width: 32,
+    width: 36,
   },
   chartBarWrapper: {
     width: 16,
@@ -687,6 +765,13 @@ const styles = StyleSheet.create({
     width: 16,
     borderRadius: 8,
     backgroundColor: '#1A5D1A',
+  },
+  chartValue: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#1A5D1A',
+    marginBottom: 2,
+    textAlign: 'center',
   },
   chartLabel: {
     marginTop: 6,

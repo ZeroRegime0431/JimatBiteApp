@@ -485,12 +485,17 @@ export default function EditMenuItemScreen() {
 
           {/* Restaurant Name */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Restaurant Name *</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Restaurant Name *</Text>
+              <Text style={styles.helperText}>
+                (Cannot be changed)
+              </Text>
+            </View>
             <TextInput
-              style={styles.input}
-              placeholder="e.g., Warung Pak Ali"
+              style={[styles.input, styles.readOnlyInput]}
+              placeholder="Restaurant name"
               value={restaurantName}
-              onChangeText={setRestaurantName}
+              editable={false}
               placeholderTextColor="#999"
             />
           </View>
@@ -788,6 +793,11 @@ const styles = StyleSheet.create({
   disabledInput: {
     backgroundColor: '#E8E8E8',
     opacity: 0.7,
+  },
+  readOnlyInput: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#A5D6A7',
+    color: '#2E7D32',
   },
   disabledText: {
     fontSize: 16,

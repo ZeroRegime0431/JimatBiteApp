@@ -55,7 +55,9 @@ export default function ChatListScreen() {
     }
   };
 
-  const formatTime = (date: Date) => {
+  const formatTime = (date?: Date) => {
+    if (!date) return 'Recent';
+    
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
@@ -134,10 +136,12 @@ export default function ChatListScreen() {
                           : conversation.merchantName.charAt(0).toUpperCase()}
                     </Text>
                   </View>
-                  {conversation.unreadCount > 0 && (
+                  {((isMerchant && conversation.unreadCountMerchant > 0) || (!isMerchant && conversation.unreadCount > 0)) && (
                     <View style={styles.unreadBadge}>
                       <Text style={styles.unreadBadgeText}>
-                        {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
+                        {isMerchant 
+                          ? (conversation.unreadCountMerchant > 9 ? '9+' : conversation.unreadCountMerchant)
+                          : (conversation.unreadCount > 9 ? '9+' : conversation.unreadCount)}
                       </Text>
                     </View>
                   )}
@@ -162,7 +166,7 @@ export default function ChatListScreen() {
                   <Text 
                     style={[
                       styles.lastMessage,
-                      conversation.unreadCount > 0 && styles.lastMessageUnread
+                      ((isMerchant && conversation.unreadCountMerchant > 0) || (!isMerchant && conversation.unreadCount > 0)) && styles.lastMessageUnread
                     ]}
                     numberOfLines={1}
                   >

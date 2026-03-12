@@ -62,6 +62,11 @@ export interface CartItem {
   restaurantId: string;
   restaurantName: string;
   notes?: string; // Customer notes to the seller
+  
+  // Fulfillment tracking
+  fulfilled?: boolean;
+  fulfilledBy?: string; // Merchant UID who fulfilled this item
+  fulfilledAt?: Date;
 }
 
 export interface Cart {
@@ -79,7 +84,7 @@ export interface Order {
   deliveryFee: number;
   tax: number;
   grandTotal: number;
-  status: 'pending' | 'confirmed' | 'preparing' | 'on-the-way' | 'delivered' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'preparing' | 'partially-fulfilled' | 'ready-for-pickup' | 'on-the-way' | 'delivered' | 'cancelled';
   deliveryAddress: Address;
   paymentMethod: string;
   orderDate: Date;
@@ -87,6 +92,9 @@ export interface Order {
   actualDeliveryTime?: Date;
   restaurantId: string;
   restaurantName: string;
+  
+  // Multi-vendor fulfillment tracking
+  fulfilledRestaurants?: string[]; // Array of restaurant names that have scanned QR
 }
 
 export interface PaymentMethod {
@@ -184,10 +192,10 @@ export interface Conversation {
   merchantName: string;
   orderId?: string; // Optional link to a specific order
   lastMessage: string;
-  lastMessageTime: Date;
+  lastMessageTime?: Date;
   unreadCount: number; // Unread messages for customer
   unreadCountMerchant: number; // Unread messages for merchant
-  createdAt: Date;
+  createdAt?: Date;
 }
 
 export interface ChatMessage {

@@ -10,7 +10,7 @@ import BackArrowLeftSvg from '../assets/SideBar/icons/backarrowleft.svg';
 import { db, storage } from '../config/firebase';
 import { getCurrentUser } from '../services/auth';
 import { getOrCreateConversation } from '../services/chat';
-import { getOrderById, getUserOrders, updateOrderStatus } from '../services/database';
+import { fulfillOrderItems, getMerchantProfile, getOrderById, getUserOrders } from '../services/database';
 import type { Order } from '../types';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -126,9 +126,9 @@ export default function OrderDetailsScreen() {
     
     for (const restaurantName of restaurantNames) {
       try {
-        // Try merchant_accounts collection first
-        const merchantAccountsRef = collection(db, 'merchant_accounts');
-        const q = query(merchantAccountsRef, where('storeName', '==', restaurantName));
+        // Query merchants collection to find merchant by storeName
+        const merchantsRef = collection(db, 'merchants');
+        const q = query(merchantsRef, where('storeName', '==', restaurantName));
         const snapshot = await getDocs(q);
         
         if (!snapshot.empty) {
@@ -141,23 +141,7 @@ export default function OrderDetailsScreen() {
           ].filter(Boolean);
           addresses[restaurantName] = addressParts.join(', ');
         } else {
-          // Try merchants collection as fallback
-          const merchantsRef = collection(db, 'merchants');
-          const q2 = query(merchantsRef, where('storeName', '==', restaurantName));
-          const snapshot2 = await getDocs(q2);
-          
-          if (!snapshot2.empty) {
-            const merchantData = snapshot2.docs[0].data();
-            const addressParts = [
-              merchantData.addressLine1,
-              merchantData.addressLine2,
-              merchantData.postCode,
-              merchantData.city
-            ].filter(Boolean);
-            addresses[restaurantName] = addressParts.join(', ');
-          } else {
-            addresses[restaurantName] = 'Address not available';
-          }
+          addresses[restaurantName] = 'Address not available';
         }
       } catch (error) {
         console.error(`Error loading address for ${restaurantName}:`, error);
@@ -173,6 +157,8 @@ export default function OrderDetailsScreen() {
       case 'pending': return '#FFA500';
       case 'confirmed': return '#4CAF50';
       case 'preparing': return '#2196F3';
+      case 'partially-fulfilled': return '#FF9800';
+      case 'ready-for-pickup': return '#9C27B0';
       case 'on-the-way': return '#9C27B0';
       case 'delivered': return '#4CAF50';
       case 'cancelled': return '#F44336';
@@ -181,7 +167,12 @@ export default function OrderDetailsScreen() {
   };
 
   const getStatusText = (status: Order['status']) => {
-    return status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
+    switch (status) {
+      case 'partially-fulfilled': return 'Partially Fulfilled';
+      case 'ready-for-pickup': return 'Ready for Pickup';
+      case 'on-the-way': return 'On the Way';
+      default: return status.charAt(0).toUpperCase() + status.slice(1);
+    }
   };
 
   const handleQRCodePress = () => {
@@ -223,25 +214,91 @@ export default function OrderDetailsScreen() {
   const handleCompleteOrder = async () => {
     if (!order) return;
     
-    setCompleting(true);
-    const result = await updateOrderStatus(order.id, 'delivered');
+    const user = getCurrentUser();
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to fulfill orders.');
+      return;
+    }
     
-    if (result.success) {
-      Alert.alert(
-        'Order Completed!',
-        'The order has been marked as delivered.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setShowCompleteDialog(false);
-              router.back();
-            }
-          }
-        ]
-      );
-    } else {
-      Alert.alert('Error', 'Failed to complete order. Please try again.');
+    setCompleting(true);
+    
+    try {
+      // Get merchant profile to find their restaurant name
+      const merchantResult = await getMerchantProfile(user.uid);
+      
+      if (!merchantResult.success || !merchantResult.data) {
+        Alert.alert('Error', 'Merchant profile not found. Only registered merchants can fulfill orders.');
+        setCompleting(false);
+        return;
+      }
+      
+      const merchantStoreName = merchantResult.data.storeName;
+      
+      // Check if this merchant has items in this order
+      const merchantItems = order.items.filter(item => item.restaurantName === merchantStoreName);
+      
+      if (merchantItems.length === 0) {
+        Alert.alert(
+          'No Items to Fulfill',
+          `This order does not contain any items from ${merchantStoreName}.`
+        );
+        setCompleting(false);
+        return;
+      }
+      
+      // Check if merchant's items are already fulfilled
+      const alreadyFulfilled = merchantItems.every(item => item.fulfilled === true);
+      if (alreadyFulfilled) {
+        Alert.alert(
+          'Already Fulfilled',
+          `All items from ${merchantStoreName} have already been fulfilled.`
+        );
+        setCompleting(false);
+        return;
+      }
+      
+      // Fulfill items for this merchant
+      const result = await fulfillOrderItems(order.id, user.uid, merchantStoreName);
+      
+      if (result.success) {
+        const fulfilledItemsCount = merchantItems.length;
+        
+        if (result.allFulfilled) {
+          Alert.alert(
+            'Order Completed! 🎉',
+            `All items have been fulfilled. The complete order is now marked as delivered.`,
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  setShowCompleteDialog(false);
+                  loadOrderDetails();
+                }
+              }
+            ]
+          );
+        } else {
+          Alert.alert(
+            'Items Fulfilled! ✓',
+            `${fulfilledItemsCount} item(s) from ${merchantStoreName} marked as fulfilled.\n\nWaiting for other restaurants to fulfill their items.`,
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  setShowCompleteDialog(false);
+                  loadOrderDetails();
+                }
+              }
+            ]
+          );
+        }
+      } else {
+        Alert.alert('Error', result.error || 'Failed to fulfill order items. Please try again.');
+        setCompleting(false);
+      }
+    } catch (error) {
+      console.error('Error completing order:', error);
+      Alert.alert('Error', 'An unexpected error occurred.');
       setCompleting(false);
     }
   };
@@ -278,11 +335,11 @@ export default function OrderDetailsScreen() {
     return ['pending', 'confirmed', 'preparing', 'on-the-way'].includes(order.status);
   };
 
-  // Get merchant user ID by looking up merchant_accounts by store name
+  // Get merchant user ID by looking up merchants by store name
   const getMerchantIdForRestaurant = async (restaurantName: string): Promise<string> => {
     try {
-      // Query merchant_accounts collection to find merchant by storeName
-      const merchantsRef = collection(db, 'merchant_accounts');
+      // Query merchants collection to find merchant by storeName
+      const merchantsRef = collection(db, 'merchants');
       const q = query(merchantsRef, where('storeName', '==', restaurantName));
       const snapshot = await getDocs(q);
       
@@ -388,6 +445,19 @@ export default function OrderDetailsScreen() {
           </View>
         </View>
 
+        {/* Fulfillment Status */}
+        {order.status === 'partially-fulfilled' && order.fulfilledRestaurants && order.fulfilledRestaurants.length > 0 && (
+          <View style={styles.fulfillmentCard}>
+            <Text style={styles.fulfillmentTitle}>Fulfillment Progress</Text>
+            <Text style={styles.fulfillmentText}>
+              ✓ Fulfilled by: {order.fulfilledRestaurants.join(', ')}
+            </Text>
+            <Text style={styles.fulfillmentText}>
+              Waiting for other restaurants to complete their items...
+            </Text>
+          </View>
+        )}
+
         {/* Cancelled Order Banner */}
         {order.status === 'cancelled' && (
           <View style={styles.cancelledBanner}>
@@ -434,7 +504,14 @@ export default function OrderDetailsScreen() {
                     </View>
                   )}
                   <View style={styles.itemInfo}>
-                    <Text style={styles.itemName}>{item.name}</Text>
+                    <View style={styles.itemNameRow}>
+                      <Text style={styles.itemName}>{item.name}</Text>
+                      {item.fulfilled && (
+                        <View style={styles.fulfilledBadge}>
+                          <Text style={styles.fulfilledBadgeText}>✓ Fulfilled</Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={styles.itemRestaurant}>{item.restaurantName}</Text>
                     <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
                     {item.notes && item.notes.trim() && (
@@ -700,6 +777,30 @@ const styles = StyleSheet.create({
     color: '#D32F2F',
     textAlign: 'center',
   },
+  fulfillmentCard: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9800',
+  },
+  fulfillmentTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#E65100',
+    marginBottom: 8,
+  },
+  fulfillmentProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fulfillmentText: {
+    fontSize: 14,
+    color: '#555',
+    fontWeight: '600',
+  },
   section: {
     marginBottom: 16,
   },
@@ -778,11 +879,30 @@ const styles = StyleSheet.create({
   itemInfo: {
     flex: 1,
   },
+  itemNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   itemName: {
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
+    flex: 1,
+  },
+  fulfilledBadge: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  fulfilledBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#2E7D32',
   },
   itemRestaurant: {
     fontSize: 11,

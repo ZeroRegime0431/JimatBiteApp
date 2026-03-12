@@ -111,9 +111,9 @@ export default function CheckoutScreen() {
     
     for (const restaurantName of restaurantNames) {
       try {
-        // Try merchant_accounts collection first
-        const merchantAccountsRef = collection(db, 'merchant_accounts');
-        const q = query(merchantAccountsRef, where('storeName', '==', restaurantName));
+        // Query merchants collection to find merchant by storeName
+        const merchantsRef = collection(db, 'merchants');
+        const q = query(merchantsRef, where('storeName', '==', restaurantName));
         const snapshot = await getDocs(q);
         
         if (!snapshot.empty) {
@@ -126,23 +126,7 @@ export default function CheckoutScreen() {
           ].filter(Boolean);
           addresses[restaurantName] = addressParts.join(', ');
         } else {
-          // Try merchants collection as fallback
-          const merchantsRef = collection(db, 'merchants');
-          const q2 = query(merchantsRef, where('storeName', '==', restaurantName));
-          const snapshot2 = await getDocs(q2);
-          
-          if (!snapshot2.empty) {
-            const merchantData = snapshot2.docs[0].data();
-            const addressParts = [
-              merchantData.addressLine1,
-              merchantData.addressLine2,
-              merchantData.postCode,
-              merchantData.city
-            ].filter(Boolean);
-            addresses[restaurantName] = addressParts.join(', ');
-          } else {
-            addresses[restaurantName] = 'Address not available';
-          }
+          addresses[restaurantName] = 'Address not available';
         }
       } catch (error) {
         console.error(`Error loading address for ${restaurantName}:`, error);
