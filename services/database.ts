@@ -850,3 +850,146 @@ export const getOrderReviews = async (
     return { success: false, error: error.message };
   }
 };
+
+// ============= ADDRESSES =============
+
+export interface Address {
+  id: string;
+  name: string;
+  fullAddress: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  createdAt?: Date;
+}
+
+export const addAddress = async (
+  userId: string,
+  addressData: Omit<Address, 'id'>
+): Promise<{ success: boolean; addressId?: string; error?: string }> => {
+  try {
+    const addressRef = doc(collection(db, 'addresses'));
+    await setDoc(addressRef, {
+      ...addressData,
+      id: addressRef.id,
+      userId,
+      createdAt: serverTimestamp(),
+    });
+    return { success: true, addressId: addressRef.id };
+  } catch (error: any) {
+    console.error('Error adding address:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const getAddresses = async (
+  userId: string
+): Promise<{ success: boolean; data?: Address[]; error?: string }> => {
+  try {
+    const addressesRef = collection(db, 'addresses');
+    const q = query(addressesRef, where('userId', '==', userId));
+    const querySnapshot = await getDocs(q);
+    
+    const addresses: Address[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      addresses.push({
+        id: doc.id,
+        name: data.name,
+        fullAddress: data.fullAddress,
+        coordinates: data.coordinates,
+        createdAt: data.createdAt?.toDate(),
+      } as Address);
+    });
+    
+    return { success: true, data: addresses };
+  } catch (error: any) {
+    console.error('Error getting addresses:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const getAddress = async (
+  userId: string,
+  addressId: string
+): Promise<{ success: boolean; data?: Address; error?: string }> => {
+  try {
+    const addressRef = doc(db, 'addresses', addressId);
+    const addressSnap = await getDoc(addressRef);
+    
+    if (!addressSnap.exists()) {
+      return { success: false, error: 'Address not found' };
+    }
+    
+    const data = addressSnap.data();
+    if (data.userId !== userId) {
+      return { success: false, error: 'Unauthorized' };
+    }
+    
+    return {
+      success: true,
+      data: {
+        id: addressSnap.id,
+        name: data.name,
+        fullAddress: data.fullAddress,
+        coordinates: data.coordinates,
+        createdAt: data.createdAt?.toDate(),
+      } as Address,
+    };
+  } catch (error: any) {
+    console.error('Error getting address:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const updateAddress = async (
+  userId: string,
+  addressId: string,
+  addressData: Partial<Omit<Address, 'id' | 'createdAt'>>
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const addressRef = doc(db, 'addresses', addressId);
+    const addressSnap = await getDoc(addressRef);
+    
+    if (!addressSnap.exists()) {
+      return { success: false, error: 'Address not found' };
+    }
+    
+    const data = addressSnap.data();
+    if (data.userId !== userId) {
+      return { success: false, error: 'Unauthorized' };
+    }
+    
+    await updateDoc(addressRef, addressData);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error updating address:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const deleteAddress = async (
+  userId: string,
+  addressId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const addressRef = doc(db, 'addresses', addressId);
+    const addressSnap = await getDoc(addressRef);
+    
+    if (!addressSnap.exists()) {
+      return { success: false, error: 'Address not found' };
+    }
+    
+    const data = addressSnap.data();
+    if (data.userId !== userId) {
+      return { success: false, error: 'Unauthorized' };
+    }
+    
+    await deleteDoc(addressRef);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error deleting address:', error);
+    return { success: false, error: error.message };
+  }
+};
